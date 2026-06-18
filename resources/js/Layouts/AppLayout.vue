@@ -23,7 +23,7 @@ import { PanelLeft } from 'lucide-vue-next';
 import NavigationSidebarItem from '@/Components/NavigationSidebarItem.vue';
 import UserSettingsIcon from '@/Components/UserSettingsIcon.vue';
 import MainContainer from '@/packages/ui/src/MainContainer.vue';
-import { nextTick, onMounted, provide, ref } from 'vue';
+import { computed, nextTick, onMounted, provide, ref } from 'vue';
 import NotificationContainer from '@/Components/NotificationContainer.vue';
 import { initializeStores } from '@/utils/init';
 import { useCurrentTimeEntryStore } from '@/utils/useCurrentTimeEntry';
@@ -46,7 +46,7 @@ import BillingBanner from '@/Components/Billing/BillingBanner.vue';
 import UserTimezoneMismatchModal from '@/Components/Common/User/UserTimezoneMismatchModal.vue';
 import { useTheme } from '@/utils/theme';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
-import { getCurrentOrganizationId } from '@/utils/useUser';
+import { getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
 import LoadingSpinner from '@/packages/ui/src/LoadingSpinner.vue';
 import { twMerge } from 'tailwind-merge';
 import { Button } from '@/packages/ui/src/Buttons';
@@ -63,6 +63,18 @@ defineProps({
 
 const showSidebarMenu = ref(false);
 const sidebarVisible = ref(false);
+
+// Employees do not get the "Manage" group (Projects, Clients, Members, Tags…).
+const isEmployee = computed(() => getCurrentRole() === 'employee');
+const showManageGroup = computed(
+    () =>
+        !isEmployee.value &&
+        (canViewProjects() ||
+            canViewClients() ||
+            canViewMembers() ||
+            canViewTags() ||
+            (isInvoicingActivated() && canViewInvoices()))
+);
 
 function openSidebar() {
     showSidebarMenu.value = true;
@@ -201,6 +213,21 @@ const page = usePage<{
                                         show: true,
                                     },
                                     {
+                                        title: 'Weekly',
+                                        route: 'reporting.weekly',
+                                        show: true,
+                                    },
+                                    {
+                                        title: 'Weekly Detailed',
+                                        route: 'reporting.weekly-detailed',
+                                        show: true,
+                                    },
+                                    {
+                                        title: 'Attendance',
+                                        route: 'reporting.attendance',
+                                        show: true,
+                                    },
+                                    {
                                         title: 'Detailed',
                                         route: 'reporting.detailed',
                                         show: true,
@@ -213,6 +240,9 @@ const page = usePage<{
                                 ]"
                                 :current="
                                     route().current('reporting') ||
+                                    route().current('reporting.weekly') ||
+                                    route().current('reporting.weekly-detailed') ||
+                                    route().current('reporting.attendance') ||
                                     route().current('reporting.detailed') ||
                                     route().current('reporting.shared')
                                 "
@@ -221,9 +251,13 @@ const page = usePage<{
                         </ul>
                     </nav>
 
-                    <div class="text-text-tertiary text-xs font-semibold pt-5 pb-1.5">Manage</div>
+                    <div
+                        v-if="showManageGroup"
+                        class="text-text-tertiary text-xs font-semibold pt-5 pb-1.5">
+                        Manage
+                    </div>
 
-                    <nav>
+                    <nav v-if="showManageGroup">
                         <ul>
                             <NavigationSidebarItem
                                 v-if="canViewProjects()"

@@ -48,13 +48,21 @@ const seriesData = computed(() => {
         };
     });
 });
+// The donut occupies a fixed band at the top; the legend is laid out below it.
+// Grow the canvas with the number of entries so the legend is never clipped.
+const DONUT_BAND = 230;
+const LEGEND_LINE = 24;
+const legendRows = computed(() => Math.ceil((props.data?.length ?? 0) / 1.5));
+const chartHeight = computed(() => Math.max(460, DONUT_BAND + legendRows.value * LEGEND_LINE + 20));
+
 const option = computed(() => ({
     tooltip: {
         trigger: 'item',
     },
     legend: {
         show: true,
-        top: '250px',
+        type: 'scroll',
+        top: `${DONUT_BAND}px`,
         textStyle: {
             color: labelColor.value,
         },
@@ -75,8 +83,8 @@ const option = computed(() => ({
                 },
             },
             data: seriesData.value,
-            radius: ['30%', '60%'],
-            top: '-45%',
+            radius: [55, 100],
+            center: ['50%', '110px'],
             type: 'pie',
         },
     ],
@@ -85,7 +93,8 @@ const option = computed(() => ({
 
 <template>
     <v-chart
-        class="background-transparent max-w-[300px] mx-auto h-[460px]"
+        class="background-transparent max-w-[300px] mx-auto"
+        :style="{ height: chartHeight + 'px' }"
         :autoresize="true"
         :option="option" />
 </template>
