@@ -48,6 +48,18 @@ Route::middleware([
         return Inertia::render('Reporting');
     })->name('reporting');
 
+    Route::get('/reporting/weekly', function () {
+        return Inertia::render('ReportingWeekly');
+    })->name('reporting.weekly');
+
+    Route::get('/reporting/attendance', function () {
+        return Inertia::render('ReportingAttendance');
+    })->name('reporting.attendance');
+
+    Route::get('/reporting/weekly-detailed', function () {
+        return Inertia::render('ReportingWeeklyDetailed');
+    })->name('reporting.weekly-detailed');
+
     Route::get('/reporting/detailed', function () {
         return Inertia::render('ReportingDetailed');
     })->name('reporting.detailed');

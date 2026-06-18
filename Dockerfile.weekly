@@ -1,0 +1,6 @@
+# Fast local image: official solidtime base + our Weekly Reports changes.
+# Runtime only needs the compiled frontend (public/build) and the new web route.
+FROM solidtime/solidtime:latest
+
+COPY --chown=octane:octane public/build /var/www/html/public/build
+COPY --chown=octane:octane routes/web.php /var/www/html/routes/web.php

@@ -4,7 +4,7 @@ services:
             context: ./docker/local/8.3
             dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
+                WWWGROUP: '${WWWGROUP:-1000}'
         image: sail-8.3/app
         labels:
             - "traefik.enable=true"
@@ -24,8 +24,8 @@ services:
             - "traefik.http.routers.solidtime-dev-vite.service=solidtime-dev-vite"
             - "traefik.http.routers.solidtime-dev-vite.entrypoints=web"
         extra_hosts:
-            - "host.docker.internal:host-gateway"
-            - "storage.${NGINX_HOST_NAME}:${REVERSE_PROXY_IP:-10.100.100.10}"
+            "host.docker.internal": "host-gateway"
+            "storage.${NGINX_HOST_NAME}": "${REVERSE_PROXY_IP:-10.100.100.10}"
         environment:
             XDG_CONFIG_HOME: /var/www/html/config
             XDG_DATA_HOME: /var/www/html/data
@@ -111,8 +111,8 @@ services:
         command: ['npx', 'playwright', 'test', '--ui-port=8080', '--ui-host=0.0.0.0']
         working_dir: /src
         extra_hosts:
-            - "${NGINX_HOST_NAME}:${REVERSE_PROXY_IP:-10.100.100.10}"
-            - "${VITE_HOST_NAME}:${REVERSE_PROXY_IP:-10.100.100.10}"
+            "${NGINX_HOST_NAME}": "${REVERSE_PROXY_IP:-10.100.100.10}"
+            "${VITE_HOST_NAME}": "${REVERSE_PROXY_IP:-10.100.100.10}"
         labels:
             - "traefik.enable=true"
             - "traefik.docker.network=${NETWORK_NAME}"
@@ -186,7 +186,7 @@ services:
             - reverse-proxy
         entrypoint: /etc/minio/create_bucket.sh
         extra_hosts:
-            - "storage.${NGINX_HOST_NAME}:${REVERSE_PROXY_IP:-10.100.100.10}"
+            "storage.${NGINX_HOST_NAME}": "${REVERSE_PROXY_IP:-10.100.100.10}"
 
     gotenberg:
         image: gotenberg/gotenberg:8

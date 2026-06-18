@@ -28,9 +28,13 @@ import {
     type Client,
     type CreateClientBody,
     type CreateProjectBody,
+    type CreateReportBodyProperties,
     type Project,
     type TimeEntry,
 } from '@/packages/api/src';
+import { SaveIcon } from 'lucide-vue-next';
+import ReportCreateModal from '@/Components/Common/Report/ReportCreateModal.vue';
+import { canCreateReports } from '@/utils/permissions';
 import { useTagsQuery } from '@/utils/useTagsQuery';
 import { useTagsStore } from '@/utils/useTags';
 import { useSessionStorage } from '@vueuse/core';
@@ -254,6 +258,33 @@ async function downloadExport(format: ExportFormat) {
         }
     }
 }
+
+// --- Save report ----------------------------------------------------------
+const showCreateReportModal = ref(false);
+const reportProperties = computed(() => {
+    const f = getFilterAttributes();
+    return {
+        start: f.start,
+        end: f.end,
+        member_id: f.member_id,
+        member_ids: f.member_ids,
+        project_ids: f.project_ids,
+        task_ids: f.task_ids,
+        client_ids: f.client_ids,
+        tag_ids: f.tag_ids,
+        billable: f.billable ?? null,
+        group: 'project',
+        sub_group: 'task',
+        history_group: 'day',
+    } as CreateReportBodyProperties;
+});
+function onSaveReportClick() {
+    if (isAllowedToPerformPremiumAction()) {
+        showCreateReportModal.value = true;
+    } else {
+        showPremiumModal.value = true;
+    }
+}
 </script>
 
 <template>
@@ -264,13 +295,22 @@ async function downloadExport(format: ExportFormat) {
         <UpgradeModal v-model:show="showPremiumModal">
             <strong>PDF Reports</strong> are only available in solidtime Professional.
         </UpgradeModal>
+        <ReportCreateModal
+            v-model:show="showCreateReportModal"
+            :properties="reportProperties"></ReportCreateModal>
         <MainContainer
             class="h-14 sm:h-16 border-b border-default-background-separator flex flex-wrap gap-y-3 justify-between items-center">
             <div class="flex items-center space-x-3 sm:space-x-6">
                 <PageTitle :icon="ChartBarIcon" title="Reporting"></PageTitle>
                 <ReportingTabNavbar active="detailed" class="hidden sm:flex"></ReportingTabNavbar>
             </div>
-            <div class="hidden sm:block">
+            <div class="hidden sm:flex items-center gap-2">
+                <SecondaryButton
+                    v-if="canCreateReports()"
+                    :icon="SaveIcon"
+                    @click="onSaveReportClick">
+                    Save Report
+                </SecondaryButton>
                 <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                         <SecondaryButton :icon="ArrowDownTrayIcon" :loading="exportLoading">
