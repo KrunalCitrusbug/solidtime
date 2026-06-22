@@ -17,10 +17,6 @@ import TableRow from '@/Components/TableRow.vue';
 import ProjectEditModal from '@/Components/Common/Project/ProjectEditModal.vue';
 import { formatCents } from '@/packages/ui/src/utils/money';
 import { getOrganizationCurrencyString } from '@/utils/money';
-import EstimatedTimeProgress from '@/packages/ui/src/EstimatedTimeProgress.vue';
-import UpgradeBadge from '@/Components/Common/UpgradeBadge.vue';
-import { formatHumanReadableDuration } from '../../../packages/ui/src/utils/time';
-import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { canUpdateProjects, canDeleteProjects } from '@/utils/permissions';
 import type { Organization } from '@/packages/api/src';
 import {
@@ -45,6 +41,20 @@ const client = computed(() => {
 
 const projectTasksCount = computed(() => {
     return tasks.value.filter((task) => task.project_id === props.project.id).length;
+});
+
+const publicTasksCount = computed(() => {
+    return tasks.value.filter((task) => {
+        if (task.project_id !== props.project.id) return false;
+        return (task as { is_public?: boolean }).is_public !== false;
+    }).length;
+});
+
+const privateTasksCount = computed(() => {
+    return tasks.value.filter((task) => {
+        if (task.project_id !== props.project.id) return false;
+        return (task as { is_public?: boolean }).is_public === false;
+    }).length;
 });
 
 function deleteProject() {
@@ -106,26 +116,6 @@ const showEditProjectModal = ref(false);
                     </div>
                     <div v-else class="text-text-tertiary">No client</div>
                 </div>
-                <div class="whitespace-nowrap px-3 py-4 text-sm text-text-primary">
-                    <div v-if="project.spent_time">
-                        {{
-                            formatHumanReadableDuration(
-                                project.spent_time,
-                                organization?.interval_format,
-                                organization?.number_format
-                            )
-                        }}
-                    </div>
-                    <div v-else class="text-text-tertiary">--</div>
-                </div>
-                <div class="whitespace-nowrap px-3 flex items-center text-sm text-text-primary">
-                    <UpgradeBadge v-if="!isAllowedToPerformPremiumAction()"></UpgradeBadge>
-                    <EstimatedTimeProgress
-                        v-else-if="project.estimated_time"
-                        :estimated="project.estimated_time"
-                        :current="project.spent_time"></EstimatedTimeProgress>
-                    <span v-else class="text-text-tertiary"> -- </span>
-                </div>
                 <div
                     v-if="showBillableRate"
                     class="whitespace-nowrap px-3 py-4 text-sm text-text-primary">
@@ -146,12 +136,28 @@ const showEditProjectModal = ref(false);
                 <div
                     class="whitespace-nowrap px-3 py-4 text-sm text-text-primary flex space-x-1.5 items-center font-medium">
                     <template v-if="project.is_public">
-                        <GlobeAltIcon class="w-4 text-icon-default"></GlobeAltIcon>
-                        <span>Public</span>
+                        <GlobeAltIcon class="w-4 text-icon-default flex-shrink-0"></GlobeAltIcon>
+                        <span>All Members</span>
                     </template>
                     <template v-else>
-                        <LockClosedIcon class="w-4 text-icon-default"></LockClosedIcon>
-                        <span>Private</span>
+                        <LockClosedIcon class="w-4 text-icon-default flex-shrink-0"></LockClosedIcon>
+                        <span>Members Only</span>
+                    </template>
+                </div>
+                <div class="whitespace-nowrap px-3 py-4 text-sm text-text-primary">
+                    <template v-if="projectTasksCount === 0">
+                        <span class="text-text-tertiary">No tasks</span>
+                    </template>
+                    <template v-else-if="privateTasksCount === 0">
+                        <span class="text-green-600 dark:text-green-400">All Public</span>
+                    </template>
+                    <template v-else-if="publicTasksCount === 0">
+                        <span class="text-orange-500">All Private</span>
+                    </template>
+                    <template v-else>
+                        <span class="text-green-600 dark:text-green-400">{{ publicTasksCount }} Public</span>
+                        <span class="text-text-tertiary"> / </span>
+                        <span class="text-orange-500">{{ privateTasksCount }} Private</span>
                     </template>
                 </div>
                 <div

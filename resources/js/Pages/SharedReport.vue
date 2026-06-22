@@ -3,7 +3,21 @@ import MainContainer from '@/packages/ui/src/MainContainer.vue';
 import PageTitle from '@/Components/Common/PageTitle.vue';
 import { ChartBarIcon } from '@heroicons/vue/20/solid';
 import ReportingChart from '@/Components/Common/Reporting/ReportingChart.vue';
-import { formatReportingDuration } from '@/packages/ui/src/utils/time';
+import {
+    formatReportingDuration,
+    getDayJsInstance,
+    getLocalizedDayJs,
+} from '@/packages/ui/src/utils/time';
+import {
+    buildRefMaps,
+    computeAttendance,
+    computeDetailedTree,
+    dayColumnsBetween,
+    fmtDuration as utilFmtDuration,
+    fmtDurationZero,
+    type RawEntry,
+    type RawReferences,
+} from '@/utils/sharedReportLayouts';
 import ReportingRow from '@/Components/Common/Reporting/ReportingRow.vue';
 import ReportingPieChart from '@/Components/Common/Reporting/ReportingPieChart.vue';
 import { formatCents } from '@/packages/ui/src/utils/money';
@@ -118,6 +132,142 @@ const subGroup = computed(() => {
 });
 const { emptyPlaceholder } = useReportingStore();
 
+// --- Weekly matrix layout (when the saved report's format is 'weekly') -----
+const reportFormat = computed<string | null>(
+    () => (sharedReportResponseData.value?.properties as { format?: string } | undefined)?.format ?? null
+);
+const isWeeklyFormat = computed(() => reportFormat.value === 'weekly');
+
+function fmtDuration(seconds: number) {
+    return seconds
+        ? formatReportingDuration(seconds, reportIntervalFormat.value, reportNumberFormat.value)
+        : '';
+}
+
+const dayColumns = computed(() => {
+    const set = new Set<string>();
+    for (const g1 of aggregatedTableTimeEntries.value?.grouped_data ?? []) {
+        for (const g2 of (g1 as { grouped_data?: { key?: string | null }[] }).grouped_data ?? []) {
+            if (g2.key) {
+                set.add(g2.key);
+            }
+        }
+    }
+    return Array.from(set)
+        .sort()
+        .map((key) => ({ key, label: getLocalizedDayJs(key).format('ddd, MMM D') }));
+});
+
+const matrixRows = computed(() =>
+    (aggregatedTableTimeEntries.value?.grouped_data ?? []).map((g1) => {
+        const row = g1 as {
+            description: string | null;
+            color: string | null;
+            seconds: number;
+            key: string | null;
+            grouped_data?: { key?: string | null; seconds: number }[];
+        };
+        const perDay: Record<string, number> = {};
+        for (const g2 of row.grouped_data ?? []) {
+            if (g2.key) {
+                perDay[g2.key] = g2.seconds;
+            }
+        }
+        return {
+            key: row.key ?? row.description ?? 'none',
+            name:
+                row.description ??
+                emptyPlaceholder[aggregatedTableTimeEntries.value?.grouped_type ?? 'project'] ??
+                '—',
+            color: row.color ?? getRandomColorWithSeed(row.description ?? 'none'),
+            perDay,
+            total: row.seconds,
+        };
+    })
+);
+
+const matrixColumnTotals = computed(() =>
+    dayColumns.value.map((col) =>
+        matrixRows.value.reduce((sum, r) => sum + (r.perDay[col.key] ?? 0), 0)
+    )
+);
+const matrixGrandTotal = computed(() => aggregatedTableTimeEntries.value?.seconds ?? 0);
+const matrixGridTemplate = computed(
+    () => `minmax(160px, 1.5fr) repeat(${dayColumns.value.length}, minmax(80px, 1fr)) 120px`
+);
+
+// --- Raw-entry based layouts (weekly-detailed tree, attendance metrics) ----
+const isWeeklyDetailedFormat = computed(() => reportFormat.value === 'weekly-detailed');
+const isAttendanceFormat = computed(() => reportFormat.value === 'attendance');
+
+const rawEntries = computed<RawEntry[]>(
+    () => (sharedReportResponseData.value as { entries?: RawEntry[] } | undefined)?.entries ?? []
+);
+const refMaps = computed(() =>
+    buildRefMaps(
+        (sharedReportResponseData.value as { references?: RawReferences } | undefined)?.references ??
+            null
+    )
+);
+const formatConfig = computed<{ excludeProjectIds?: string[]; groupBy?: string }>(
+    () =>
+        (sharedReportResponseData.value?.properties as { format_config?: Record<string, unknown> } | undefined)
+            ?.format_config ?? {}
+);
+const reportStart = computed(
+    () => sharedReportResponseData.value?.properties.start ?? getDayJsInstance()().format()
+);
+const reportEnd = computed(
+    () => sharedReportResponseData.value?.properties.end ?? getDayJsInstance()().format()
+);
+
+// Weekly-detailed tree (rows expand Project -> Task -> Description).
+const detailedDayColumns = computed(() => dayColumnsBetween(reportStart.value, reportEnd.value));
+const detailedTree = computed(() => computeDetailedTree(rawEntries.value, refMaps.value));
+const detailedExpanded = ref<Set<string>>(new Set());
+function toggleDetailed(key: string) {
+    const next = new Set(detailedExpanded.value);
+    next.has(key) ? next.delete(key) : next.add(key);
+    detailedExpanded.value = next;
+}
+const detailedVisibleRows = computed(() => {
+    const rows: { level: 0 | 1 | 2; key: string; label: string; color: string | null; perDay: Record<string, number>; total: number; expandable: boolean; isOpen: boolean }[] = [];
+    for (const project of detailedTree.value) {
+        const pOpen = detailedExpanded.value.has(project.key);
+        rows.push({ ...project, expandable: project.children.length > 0, isOpen: pOpen });
+        if (!pOpen) continue;
+        for (const task of project.children) {
+            const tOpen = detailedExpanded.value.has(task.key);
+            rows.push({ ...task, expandable: task.children.length > 0, isOpen: tOpen });
+            if (!tOpen) continue;
+            for (const desc of task.children) {
+                rows.push({ ...desc, expandable: false, isOpen: false });
+            }
+        }
+    }
+    return rows;
+});
+const detailedColumnTotals = computed(() =>
+    detailedDayColumns.value.map((c) => detailedTree.value.reduce((s, p) => s + (p.perDay[c.key] ?? 0), 0))
+);
+const detailedGrandTotal = computed(() => detailedTree.value.reduce((s, p) => s + p.total, 0));
+const detailedGridTemplate = computed(
+    () => `minmax(240px, 1.6fr) repeat(${detailedDayColumns.value.length}, minmax(78px, 1fr)) 110px`
+);
+
+// Attendance metrics + matrix.
+const attendance = computed(() =>
+    computeAttendance(
+        rawEntries.value,
+        refMaps.value,
+        formatConfig.value.excludeProjectIds ?? [],
+        (formatConfig.value.groupBy as 'project' | 'user' | 'task' | 'client') ?? 'project'
+    )
+);
+const attendanceGridTemplate = computed(
+    () => `minmax(160px, 1.5fr) repeat(${attendance.value.dayKeys.length}, minmax(80px, 1fr)) 110px`
+);
+
 const groupedPieChartData = computed(() => {
     return (
         aggregatedTableTimeEntries.value?.grouped_data?.map((entry) => {
@@ -187,14 +337,244 @@ onMounted(async () => {
                 <PageTitle :icon="ChartBarIcon" title="Reporting"></PageTitle>
             </div>
         </MainContainer>
-        <MainContainer>
+        <MainContainer v-if="!isWeeklyDetailedFormat && !isAttendanceFormat">
             <div class="pt-10 w-full px-3 relative">
                 <ReportingChart
                     :grouped-type="aggregatedGraphTimeEntries?.grouped_type"
                     :grouped-data="aggregatedGraphTimeEntries?.grouped_data"></ReportingChart>
             </div>
         </MainContainer>
-        <MainContainer>
+        <!-- Weekly matrix layout -->
+        <MainContainer v-if="isWeeklyFormat">
+            <div class="pt-6 pb-10">
+                <div class="bg-card-background rounded-lg border border-card-border overflow-x-auto">
+                    <div class="min-w-max">
+                        <div
+                            class="grid items-center border-b border-card-background-separator text-text-tertiary text-xs"
+                            :style="`grid-template-columns: ${matrixGridTemplate}`">
+                            <div class="pl-6 py-2 font-semibold uppercase">
+                                {{ getGroupLabel(group) }}
+                            </div>
+                            <div
+                                v-for="col in dayColumns"
+                                :key="col.key"
+                                class="py-2 px-2 text-right">
+                                {{ col.label }}
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium">Total</div>
+                        </div>
+                        <div
+                            v-for="row in matrixRows"
+                            :key="row.key"
+                            class="grid items-center border-b border-card-background-separator text-sm"
+                            :style="`grid-template-columns: ${matrixGridTemplate}`">
+                            <div class="pl-6 py-2 flex items-center gap-2 min-w-0">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    :style="`background-color: ${row.color}`"></span>
+                                <span class="truncate text-text-primary">{{ row.name }}</span>
+                            </div>
+                            <div
+                                v-for="col in dayColumns"
+                                :key="col.key"
+                                class="py-2 px-2 text-right tabular-nums"
+                                :class="row.perDay[col.key] ? 'text-text-primary' : 'text-text-quaternary'">
+                                {{ row.perDay[col.key] ? fmtDuration(row.perDay[col.key] ?? 0) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium tabular-nums text-text-primary">
+                                {{ fmtDuration(row.total) || '0:00:00' }}
+                            </div>
+                        </div>
+                        <div
+                            class="grid items-center text-sm font-medium text-text-secondary"
+                            :style="`grid-template-columns: ${matrixGridTemplate}`">
+                            <div class="pl-6 py-2.5">Total</div>
+                            <div
+                                v-for="(total, index) in matrixColumnTotals"
+                                :key="'t' + index"
+                                class="py-2.5 px-2 text-right tabular-nums">
+                                {{ total ? fmtDuration(total) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2.5 text-right tabular-nums text-text-primary">
+                                {{ fmtDuration(matrixGrandTotal) || '0:00:00' }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </MainContainer>
+
+        <!-- Weekly Detailed: expandable Project -> Task -> Description -->
+        <MainContainer v-else-if="isWeeklyDetailedFormat">
+            <div class="pt-6 pb-10">
+                <div class="bg-card-background rounded-lg border border-card-border overflow-x-auto">
+                    <div class="min-w-max">
+                        <div
+                            class="grid items-center border-b border-card-background-separator text-text-tertiary text-xs"
+                            :style="`grid-template-columns: ${detailedGridTemplate}`">
+                            <div class="pl-4 py-2 font-semibold uppercase">
+                                Project / Task / Description
+                            </div>
+                            <div
+                                v-for="col in detailedDayColumns"
+                                :key="col.key"
+                                class="py-2 px-2 text-right leading-tight">
+                                <div class="font-medium">{{ col.weekday }}</div>
+                                <div>{{ col.date }}</div>
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium">Total</div>
+                        </div>
+                        <div
+                            v-for="row in detailedVisibleRows"
+                            :key="row.key"
+                            class="grid items-center border-b border-card-background-separator text-sm"
+                            :style="`grid-template-columns: ${detailedGridTemplate}`">
+                            <div
+                                class="py-2 flex items-center gap-1.5 min-w-0"
+                                :style="`padding-left: ${16 + row.level * 22}px`">
+                                <button
+                                    v-if="row.expandable"
+                                    type="button"
+                                    class="flex-shrink-0 text-text-tertiary hover:text-text-primary"
+                                    @click="toggleDetailed(row.key)">
+                                    <span class="inline-block w-3">{{ row.isOpen ? '▾' : '▸' }}</span>
+                                </button>
+                                <span v-else class="w-3 flex-shrink-0"></span>
+                                <span
+                                    v-if="row.level === 0"
+                                    class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    :style="`background-color: ${row.color ?? '#9ca3af'}`"></span>
+                                <span
+                                    class="truncate"
+                                    :class="
+                                        row.level === 0 ? 'text-text-primary font-medium' : ''
+                                    ">
+                                    {{ row.label }}
+                                </span>
+                            </div>
+                            <div
+                                v-for="col in detailedDayColumns"
+                                :key="col.key"
+                                class="py-2 px-2 text-right tabular-nums"
+                                :class="row.perDay[col.key] ? 'text-text-primary' : 'text-text-quaternary'">
+                                {{ row.perDay[col.key] ? utilFmtDuration(row.perDay[col.key] ?? 0) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium tabular-nums">
+                                {{ fmtDurationZero(row.total) }}
+                            </div>
+                        </div>
+                        <div
+                            class="grid items-center text-sm font-medium"
+                            :style="`grid-template-columns: ${detailedGridTemplate}`">
+                            <div class="pl-4 py-2.5">Total</div>
+                            <div
+                                v-for="(total, index) in detailedColumnTotals"
+                                :key="'dt' + index"
+                                class="py-2.5 px-2 text-right tabular-nums">
+                                {{ total ? utilFmtDuration(total) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2.5 text-right tabular-nums text-text-primary">
+                                {{ fmtDurationZero(detailedGrandTotal) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </MainContainer>
+
+        <!-- Attendance: daily metrics + group x day matrix -->
+        <MainContainer v-else-if="isAttendanceFormat">
+            <div class="pt-6 pb-10 space-y-8">
+                <div class="bg-card-background rounded-lg border border-card-border overflow-x-auto">
+                    <div class="min-w-max">
+                        <div
+                            class="grid border-b border-card-background-separator text-text-tertiary text-xs"
+                            :style="`grid-template-columns: ${attendanceGridTemplate}`">
+                            <div class="pl-6 py-2 font-semibold uppercase">Metric</div>
+                            <div
+                                v-for="k in attendance.dayKeys"
+                                :key="k"
+                                class="py-2 px-2 text-right font-medium">
+                                {{ k }}
+                            </div>
+                            <div class="pr-6 py-2"></div>
+                        </div>
+                        <div
+                            v-for="mrow in attendance.metricRows"
+                            :key="mrow.label"
+                            class="grid border-b border-card-background-separator text-sm"
+                            :style="`grid-template-columns: ${attendanceGridTemplate}`">
+                            <div class="pl-6 py-2 font-medium">{{ mrow.label }}</div>
+                            <div
+                                v-for="(val, i) in mrow.values"
+                                :key="i"
+                                class="py-2 px-2 text-right tabular-nums text-text-primary">
+                                {{ val }}
+                            </div>
+                            <div class="pr-6 py-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-card-background rounded-lg border border-card-border overflow-x-auto">
+                    <div class="min-w-max">
+                        <div
+                            class="grid border-b border-card-background-separator text-text-tertiary text-xs"
+                            :style="`grid-template-columns: ${attendanceGridTemplate}`">
+                            <div class="pl-6 py-2 font-semibold uppercase">
+                                {{ getGroupLabel(formatConfig.groupBy ?? 'project') }}
+                            </div>
+                            <div
+                                v-for="k in attendance.dayKeys"
+                                :key="k"
+                                class="py-2 px-2 text-right font-medium">
+                                {{ k }}
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium">Total</div>
+                        </div>
+                        <div
+                            v-for="row in attendance.matrixRows"
+                            :key="row.key"
+                            class="grid items-center border-b border-card-background-separator text-sm"
+                            :style="`grid-template-columns: ${attendanceGridTemplate}`">
+                            <div class="pl-6 py-2 flex items-center gap-2 min-w-0">
+                                <span
+                                    class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    :style="`background-color: ${row.color ?? '#9ca3af'}`"></span>
+                                <span class="truncate text-text-primary">{{ row.label }}</span>
+                            </div>
+                            <div
+                                v-for="k in attendance.dayKeys"
+                                :key="k"
+                                class="py-2 px-2 text-right tabular-nums"
+                                :class="row.perDay[k] ? 'text-text-primary' : 'text-text-quaternary'">
+                                {{ row.perDay[k] ? utilFmtDuration(row.perDay[k] ?? 0) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2 text-right font-medium tabular-nums text-text-primary">
+                                {{ fmtDurationZero(row.total) }}
+                            </div>
+                        </div>
+                        <div
+                            class="grid text-sm font-medium"
+                            :style="`grid-template-columns: ${attendanceGridTemplate}`">
+                            <div class="pl-6 py-2.5">Total</div>
+                            <div
+                                v-for="(total, index) in attendance.columnTotals"
+                                :key="'at' + index"
+                                class="py-2.5 px-2 text-right tabular-nums">
+                                {{ total ? utilFmtDuration(total) : '–' }}
+                            </div>
+                            <div class="pr-6 py-2.5 text-right tabular-nums text-text-primary">
+                                {{ fmtDurationZero(attendance.grandTotal) }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </MainContainer>
+
+        <!-- Default overview layout -->
+        <MainContainer v-else>
             <div class="sm:grid grid-cols-4 pt-6 items-start">
                 <div
                     class="col-span-3 bg-card-background rounded-lg border border-card-border pt-3">

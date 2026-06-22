@@ -64,11 +64,12 @@ defineProps({
 const showSidebarMenu = ref(false);
 const sidebarVisible = ref(false);
 
-// Employees do not get the "Manage" group (Projects, Clients, Members, Tags…).
-const isEmployee = computed(() => getCurrentRole() === 'employee');
+// The "Manage" group (Projects, Clients, Members, Tags…) is only shown to
+// organization admins/owners — not to managers or employees.
+const isAdmin = computed(() => ['owner', 'admin'].includes(getCurrentRole() ?? ''));
 const showManageGroup = computed(
     () =>
-        !isEmployee.value &&
+        isAdmin.value &&
         (canViewProjects() ||
             canViewClients() ||
             canViewMembers() ||

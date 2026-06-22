@@ -53,14 +53,24 @@ class DetailedWithDataReportResource extends BaseResource
     private array $historyData;
 
     /**
+     * Optional raw entries + reference data used to reproduce custom layouts
+     * (weekly-detailed, attendance) when viewing a shared report.
+     *
+     * @var array<string, mixed>
+     */
+    private array $extra;
+
+    /**
      * @param  Data  $data
      * @param  Data  $historyData
+     * @param  array<string, mixed>  $extra
      */
-    public function __construct(Report $resource, array $data, array $historyData)
+    public function __construct(Report $resource, array $data, array $historyData, array $extra = [])
     {
         parent::__construct($resource);
         $this->data = $data;
         $this->historyData = $historyData;
+        $this->extra = $extra;
     }
 
     /**
@@ -104,7 +114,15 @@ class DetailedWithDataReportResource extends BaseResource
                 'start' => $this->formatDateTime($this->resource->properties->start),
                 /** @var string $end End date of the report */
                 'end' => $this->formatDateTime($this->resource->properties->end),
+                /** @var string|null $format Optional UI layout hint (e.g. 'weekly') */
+                'format' => $this->resource->properties->format,
+                'format_config' => $this->resource->properties->formatConfig,
+                'timezone' => $this->resource->properties->timezone,
+                'week_start' => $this->resource->properties->weekStart->value,
             ],
+            // Raw entries + reference data for reproducing custom layouts (may be empty).
+            'entries' => $this->extra['entries'] ?? [],
+            'references' => $this->extra['references'] ?? null,
             /** @var array{
              *        grouped_type: string|null,
              *        grouped_data: null|array<array{

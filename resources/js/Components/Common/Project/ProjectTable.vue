@@ -10,8 +10,6 @@ import ProjectTableRow from '@/Components/Common/Project/ProjectTableRow.vue';
 export type SortColumn =
     | 'name'
     | 'client_name'
-    | 'spent_time'
-    | 'progress'
     | 'billable_rate'
     | 'status'
     | 'visibility';
@@ -81,20 +79,6 @@ const columns = computed(() => [
         },
     },
     {
-        id: 'spent_time',
-        sortDescFirst: true,
-        accessorFn: (row: Project) => row.spent_time ?? 0,
-    },
-    {
-        id: 'progress',
-        sortDescFirst: true,
-        sortUndefined: 'last' as const,
-        accessorFn: (row: Project) => {
-            if (!row.estimated_time) return undefined;
-            return (row.spent_time / row.estimated_time) * 100;
-        },
-    },
-    {
         id: 'billable_rate',
         sortDescFirst: true,
         accessorFn: (row: Project) => row.billable_rate ?? 0,
@@ -154,7 +138,7 @@ async function createClient(client: CreateClientBody): Promise<Client | undefine
 }
 
 const gridTemplate = computed(() => {
-    return `grid-template-columns: minmax(300px, 1fr) minmax(150px, auto) minmax(140px, auto) minmax(130px, auto) ${props.showBillableRate ? 'minmax(130px, auto)' : ''} minmax(120px, auto) minmax(120px, auto) 80px;`;
+    return `grid-template-columns: minmax(300px, 1fr) minmax(150px, auto) ${props.showBillableRate ? 'minmax(130px, auto)' : ''} minmax(120px, auto) minmax(150px, auto) minmax(130px, auto) 80px;`;
 });
 </script>
 

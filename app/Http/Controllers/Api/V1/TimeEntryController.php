@@ -24,6 +24,7 @@ use App\Http\Resources\V1\TimeEntry\TimeEntryResource;
 use App\Jobs\RecalculateSpentTimeForProject;
 use App\Jobs\RecalculateSpentTimeForTask;
 use App\Models\Member;
+use App\Models\ProjectMember;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Task;
@@ -208,7 +209,30 @@ class TimeEntryController extends Controller
         $filter->addClientIdsFilter($request->input('client_ids'));
         $filter->addBillableFilter($request->input('billable'));
 
-        return $filter->get();
+        $query = $filter->get();
+        $this->applyManagerProjectScope($query, $organization);
+
+        return $query;
+    }
+
+    /**
+     * Managers may only see time entries belonging to the projects they are
+     * assigned to. Owner/Admin (and Employees, who are already scoped to their
+     * own entries) are unaffected.
+     *
+     * @param  Builder<TimeEntry>  $query
+     */
+    private function applyManagerProjectScope(Builder $query, Organization $organization): void
+    {
+        $member = $this->member($organization);
+        if ($member->role !== Role::Manager->value) {
+            return;
+        }
+        $projectIds = ProjectMember::query()
+            ->where('member_id', '=', $member->getKey())
+            ->pluck('project_id')
+            ->all();
+        $query->whereIn('project_id', $projectIds);
     }
 
     /**
@@ -564,7 +588,10 @@ class TimeEntryController extends Controller
         $filter->addClientIdsFilter($request->input('client_ids'));
         $filter->addBillableFilter($request->input('billable'));
 
-        return $filter->get();
+        $query = $filter->get();
+        $this->applyManagerProjectScope($query, $organization);
+
+        return $query;
     }
 
     /**

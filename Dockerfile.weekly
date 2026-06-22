@@ -1,6 +1,23 @@
-# Fast local image: official solidtime base + our Weekly Reports changes.
-# Runtime only needs the compiled frontend (public/build) and the new web route.
+# Fast local image: official solidtime base + our local source changes.
+# Keep the local Composer install in sync with the overlaid app code; the base
+# image can lag the checkout and miss classes expected by the current source.
 FROM solidtime/solidtime:latest
 
+COPY --chown=octane:octane composer.json composer.lock /var/www/html/
+COPY --chown=octane:octane vendor /var/www/html/vendor
 COPY --chown=octane:octane public/build /var/www/html/public/build
-COPY --chown=octane:octane routes/web.php /var/www/html/routes/web.php
+COPY --chown=octane:octane public/images /var/www/html/public/images
+COPY --chown=octane:octane routes /var/www/html/routes
+COPY --chown=octane:octane config /var/www/html/config
+COPY --chown=octane:octane resources/views /var/www/html/resources/views
+COPY --chown=octane:octane app /var/www/html/app
+COPY --chown=octane:octane database/migrations /var/www/html/database/migrations
+
+# Drop any cached package/config/routes files baked into the base image so our
+# copied dependencies and code are used.
+RUN rm -f /var/www/html/bootstrap/cache/packages.php \
+          /var/www/html/bootstrap/cache/services.php \
+          /var/www/html/bootstrap/cache/config.php \
+          /var/www/html/bootstrap/cache/routes-*.php \
+ && php /var/www/html/artisan config:clear || true \
+ && php /var/www/html/artisan route:clear || true

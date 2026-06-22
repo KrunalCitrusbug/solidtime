@@ -276,6 +276,7 @@ const reportProperties = computed(() => {
         group: 'project',
         sub_group: 'task',
         history_group: 'day',
+        format: 'detailed',
     } as CreateReportBodyProperties;
 });
 function onSaveReportClick() {

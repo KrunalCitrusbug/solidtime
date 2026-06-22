@@ -9,12 +9,15 @@ export const useTasksStore = defineStore('tasks', () => {
     const { handleApiRequestNotifications } = useNotificationsStore();
     const queryClient = useQueryClient();
 
-    async function updateTask(taskId: string, taskBody: UpdateTaskBody) {
+    async function updateTask(
+        taskId: string,
+        taskBody: UpdateTaskBody & { is_public?: boolean; member_ids?: string[] }
+    ) {
         const organizationId = getCurrentOrganizationId();
         if (organizationId) {
             await handleApiRequestNotifications(
                 () =>
-                    api.updateTask(taskBody, {
+                    api.updateTask(taskBody as UpdateTaskBody, {
                         params: {
                             task: taskId,
                             organization: organizationId,
@@ -27,12 +30,14 @@ export const useTasksStore = defineStore('tasks', () => {
         }
     }
 
-    async function createTask(task: CreateTaskBody) {
+    async function createTask(
+        task: CreateTaskBody & { is_public?: boolean; member_ids?: string[] }
+    ) {
         const organizationId = getCurrentOrganizationId();
         if (organizationId) {
             await handleApiRequestNotifications(
                 () =>
-                    api.createTask(task, {
+                    api.createTask(task as CreateTaskBody, {
                         params: {
                             organization: organizationId,
                         },

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ use OwenIt\Auditing\Contracts\Auditable as AuditableContract;
 /**
  * @property string $id
  * @property string $name
+ * @property bool $is_public
  * @property string $project_id
  * @property string $organization_id
  * @property Carbon|null $done_at
@@ -55,6 +57,7 @@ class Task extends Model implements AuditableContract
         'name' => 'string',
         'estimated_time' => 'integer',
         'done_at' => 'datetime',
+        'is_public' => 'boolean',
     ];
 
     /**
@@ -144,6 +147,17 @@ class Task extends Model implements AuditableContract
     }
 
     /**
+     * Members granted access to this task (relevant when the task is private).
+     *
+     * @return BelongsToMany<Member, $this>
+     */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(Member::class, 'task_members', 'task_id', 'member_id')
+            ->withTimestamps();
+    }
+
+    /**
      * @param  Builder<Task>  $builder
      * @return Builder<Task>
      */
@@ -152,6 +166,24 @@ class Task extends Model implements AuditableContract
         return $builder->whereHas('project', function (Builder $builder) use ($user): Builder {
             /** @var Builder<Project> $builder */
             return $builder->visibleByEmployee($user);
+        });
+    }
+
+    /**
+     * Restrict to tasks the given member may access: public tasks, or private
+     * tasks the member has been explicitly added to.
+     *
+     * @param  Builder<Task>  $builder
+     * @return Builder<Task>
+     */
+    public function scopeVisibleByMember(Builder $builder, Member $member): Builder
+    {
+        return $builder->where(function (Builder $builder) use ($member): Builder {
+            return $builder->where('is_public', '=', true)
+                ->orWhereHas('members', function (Builder $builder) use ($member): Builder {
+                    /** @var Builder<Member> $builder */
+                    return $builder->where('task_members.member_id', '=', $member->getKey());
+                });
         });
     }
 

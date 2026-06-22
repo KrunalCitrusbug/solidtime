@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartBarIcon, FolderIcon, UserGroupIcon } from '@heroicons/vue/20/solid';
+import { ChartBarIcon, FolderIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { computed, ref, watch } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
 import { getDayJsInstance, getLocalizedDayJs } from '@/packages/ui/src/utils/time';
@@ -15,14 +15,7 @@ import ReportingGroupBySelect from '@/Components/Common/Reporting/ReportingGroup
 import MemberMultiselectDropdown from '@/Components/Common/Member/MemberMultiselectDropdown.vue';
 import ProjectMultiselectDropdown from '@/Components/Common/Project/ProjectMultiselectDropdown.vue';
 import DateRangePicker from '@/packages/ui/src/Input/DateRangePicker.vue';
-import {
-    SecondaryButton,
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/packages/ui/src';
+import { SecondaryButton } from '@/packages/ui/src';
 import { api, type CreateReportBodyProperties } from '@/packages/api/src';
 import type { ExportFormat } from '@/types/reporting';
 import { getCurrentMembershipId, getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
@@ -59,8 +52,30 @@ const endDate = ref<string>(now().endOf('day').format());
 
 const selectedMembers = ref<string[]>([]);
 const excludedProjects = ref<string[]>([]);
+
+const hasActiveFilters = computed(
+    () =>
+        selectedMembers.value.length > 0 ||
+        excludedProjects.value.length > 0 ||
+        selectedProjectIds.value.length > 0
+);
+function clearFilters() {
+    selectedMembers.value = [];
+    excludedProjects.value = [];
+    selectedProjectIds.value = [];
+}
 const view = ref<'daily' | 'project'>('daily');
-const selectedProject = ref<string>('');
+const selectedProjectIds = ref<string[]>([]);
+
+const selectedProjectLabel = computed(() => {
+    if (selectedProjectIds.value.length === 0) {
+        return 'project';
+    }
+    if (selectedProjectIds.value.length === 1) {
+        return projectLabel(selectedProjectIds.value[0] ?? null);
+    }
+    return `${selectedProjectIds.value.length} projects`;
+});
 
 // Default the excluded set to a "Lunch / Break"-style project once projects load.
 let lunchDefaulted = false;
@@ -376,12 +391,13 @@ const grandTotal = computed(() =>
 
 // --- Project-wise list ----------------------------------------------------
 const projectWiseRows = computed(() => {
-    if (!selectedProject.value) {
+    if (selectedProjectIds.value.length === 0) {
         return [];
     }
+    const set = new Set(selectedProjectIds.value);
     const byDay: Record<string, { descriptions: Set<string>; total: number }> = {};
     for (const e of entries.value ?? []) {
-        if (e.project_id !== selectedProject.value) {
+        if (!e.project_id || !set.has(e.project_id)) {
             continue;
         }
         const key = dayKeyOf(e.start);
@@ -426,7 +442,7 @@ type Block = { title: string; columns: string[]; rows: string[][] };
 function currentBlocks(): { title: string; blocks: Block[] } {
     if (view.value === 'project') {
         return {
-            title: `Project-Wise Hours – ${projectLabel(selectedProject.value || null)}`,
+            title: `Project-Wise Hours – ${selectedProjectLabel.value}`,
             blocks: [
                 {
                     title: '',
@@ -477,7 +493,7 @@ function currentBlocks(): { title: string; blocks: Block[] } {
 function fileBaseName(): string {
     const base =
         view.value === 'project'
-            ? `project-wise-${projectLabel(selectedProject.value || null)}`
+            ? `project-wise-${selectedProjectLabel.value}`
             : `attendance-${memberName.value}`;
     return `${base}-${startDate.value.slice(0, 10)}_${endDate.value.slice(0, 10)}`.replace(
         /[^a-z0-9_\-]+/gi,
@@ -605,17 +621,6 @@ async function downloadExport(format: ExportFormat) {
 const showCreateReportModal = ref(false);
 const showPremiumModal = ref(false);
 
-// Express the "exclude" filter as the equivalent include-list for the saved report.
-const savedProjectIds = computed<string[] | undefined>(() => {
-    if (excludedProjects.value.length === 0) {
-        return undefined;
-    }
-    const filtered = projects.value
-        .map((p) => p.id)
-        .filter((id) => !excludedProjects.value.includes(id));
-    return filtered.length > 0 ? filtered : ['00000000-0000-0000-0000-000000000000'];
-});
-
 const reportProperties = computed(
     () =>
         ({
@@ -626,11 +631,19 @@ const reportProperties = computed(
                 !isEmployee.value && selectedMembers.value.length > 0
                     ? selectedMembers.value
                     : undefined,
-            project_ids: savedProjectIds.value,
+            // Attendance needs ALL entries (incl. excluded/lunch) so the shared
+            // view can compute the excluded/total metrics; the exclusion + grouping
+            // are carried in format_config and applied when rendering.
+            project_ids: undefined,
             billable: null,
             group: groupBy.value,
             sub_group: 'day',
             history_group: 'day',
+            format: 'attendance',
+            format_config: {
+                excludeProjectIds: excludedProjects.value,
+                groupBy: groupBy.value,
+            },
         }) as CreateReportBodyProperties
 );
 
@@ -725,18 +738,23 @@ function onSaveReportClick() {
                 </template>
             </ProjectMultiselectDropdown>
 
-            <Select v-if="view === 'project'" v-model="selectedProject">
-                <SelectTrigger size="sm" class="min-w-[200px]">
-                    <SelectValue placeholder="Select a project">
-                        {{ selectedProject ? projectLabel(selectedProject) : 'Select a project' }}
-                    </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem v-for="p in projects" :key="p.id" :value="p.id">
-                        {{ p.client_id ? (clientMap[p.client_id] ?? '') + ' - ' : '' }}{{ p.name }}
-                    </SelectItem>
-                </SelectContent>
-            </Select>
+            <ProjectMultiselectDropdown v-if="view === 'project'" v-model="selectedProjectIds">
+                <template #trigger>
+                    <ReportingFilterBadge
+                        :count="selectedProjectIds.length"
+                        :active="selectedProjectIds.length > 0"
+                        title="Project"
+                        :icon="FolderIcon" />
+                </template>
+            </ProjectMultiselectDropdown>
+            <button
+                v-if="hasActiveFilters"
+                type="button"
+                class="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition px-2 py-1.5"
+                @click="clearFilters">
+                <XMarkIcon class="w-4 h-4" />
+                <span>Clear filters</span>
+            </button>
         </MainContainer>
     </div>
 
@@ -839,7 +857,9 @@ function onSaveReportClick() {
     <!-- Project-wise list -->
     <MainContainer v-else>
         <div class="pt-6 pb-10">
-            <div v-if="!selectedProject" class="py-16 text-center text-text-tertiary">
+            <div
+                v-if="selectedProjectIds.length === 0"
+                class="py-16 text-center text-text-tertiary">
                 Select a project to see the day-by-day breakdown.
             </div>
             <div

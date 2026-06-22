@@ -45,9 +45,12 @@ class ReportController extends Controller
     {
         $this->checkPermission($organization, 'reports:view');
 
+        // Saved reports are personal: a user only sees the reports they created
+        // (not every manager's / admin's reports).
         $reports = Report::query()
             ->orderBy('created_at', 'desc')
             ->whereBelongsTo($organization, 'organization')
+            ->where('user_id', '=', $this->user()->getKey())
             ->paginate(config('app.pagination_per_page_default'));
 
         return new ReportCollection($reports);
@@ -82,6 +85,7 @@ class ReportController extends Controller
         $report = new Report;
         $report->name = $request->getName();
         $report->description = $request->getDescription();
+        $report->user_id = $user->getKey();
         $isPublic = $request->getIsPublic();
         $report->is_public = $isPublic;
         $properties = new ReportPropertiesDto;
@@ -110,6 +114,10 @@ class ReportController extends Controller
         $properties->timezone = $timezone;
         $properties->roundingType = $request->getPropertyRoundingType();
         $properties->roundingMinutes = $request->getPropertyRoundingMinutes();
+        $formatInput = $request->input('properties.format');
+        $properties->format = is_string($formatInput) ? $formatInput : null;
+        $formatConfigInput = $request->input('properties.format_config');
+        $properties->formatConfig = is_array($formatConfigInput) ? $formatConfigInput : null;
         $report->properties = $properties;
         if ($isPublic) {
             $report->share_secret = $reportService->generateSecret();

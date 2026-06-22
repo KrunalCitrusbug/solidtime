@@ -7,7 +7,11 @@ namespace App\Http\Controllers\Api\V1\Public;
 use App\Enums\TimeEntryAggregationType;
 use App\Http\Controllers\Api\V1\Controller;
 use App\Http\Resources\V1\Report\DetailedWithDataReportResource;
+use App\Models\Client;
+use App\Models\Member;
+use App\Models\Project;
 use App\Models\Report;
+use App\Models\Task;
 use App\Models\TimeEntry;
 use App\Service\Dto\ReportPropertiesDto;
 use App\Service\TimeEntryAggregationService;
@@ -91,6 +95,61 @@ class ReportController extends Controller
             $report->properties->roundingMinutes,
         );
 
-        return new DetailedWithDataReportResource($report, $data, $historyData);
+        // For custom client-rendered layouts (weekly matrix, weekly-detailed
+        // tree, attendance metrics) the shared view needs the raw entries plus
+        // reference data to reproduce the layout in the browser.
+        $extra = [];
+        if (in_array($report->properties->format, ['weekly', 'weekly-detailed', 'attendance'], true)) {
+            $extra = $this->buildRawEntriesPayload($timeEntriesQuery->clone());
+        }
+
+        return new DetailedWithDataReportResource($report, $data, $historyData, $extra);
+    }
+
+    /**
+     * @param  Builder<TimeEntry>  $timeEntriesQuery
+     * @return array<string, mixed>
+     */
+    private function buildRawEntriesPayload(Builder $timeEntriesQuery): array
+    {
+        $entries = $timeEntriesQuery
+            ->select(['id', 'start', 'end', 'description', 'project_id', 'task_id', 'user_id'])
+            ->orderBy('start')
+            ->limit(50000)
+            ->get();
+
+        $entryData = $entries->map(fn (TimeEntry $e): array => [
+            'start' => $e->start->toIso8601ZuluString(),
+            'end' => $e->end?->toIso8601ZuluString(),
+            'description' => $e->description,
+            'project_id' => $e->project_id,
+            'task_id' => $e->task_id,
+            'user_id' => $e->user_id,
+        ])->all();
+
+        $projectIds = $entries->pluck('project_id')->filter()->unique()->values();
+        $taskIds = $entries->pluck('task_id')->filter()->unique()->values();
+        $userIds = $entries->pluck('user_id')->filter()->unique()->values();
+
+        $projects = Project::query()->whereIn('id', $projectIds)->get(['id', 'name', 'color', 'client_id']);
+        $clientIds = $projects->pluck('client_id')->filter()->unique()->values();
+        $clients = Client::query()->whereIn('id', $clientIds)->get(['id', 'name']);
+        $tasks = Task::query()->whereIn('id', $taskIds)->get(['id', 'name']);
+        $members = Member::query()->whereIn('user_id', $userIds)->with('user:id,name')->get();
+
+        return [
+            'entries' => $entryData,
+            'references' => [
+                'projects' => $projects->map(fn (Project $p): array => [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'color' => $p->color,
+                    'client_id' => $p->client_id,
+                ])->all(),
+                'clients' => $clients->map(fn (Client $c): array => ['id' => $c->id, 'name' => $c->name])->all(),
+                'tasks' => $tasks->map(fn (Task $t): array => ['id' => $t->id, 'name' => $t->name])->all(),
+                'users' => $members->map(fn (Member $m): array => ['id' => $m->user_id, 'name' => $m->user->name])->all(),
+            ],
+        ];
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\V1\Task;
 
 use App\Http\Requests\V1\BaseFormRequest;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Project;
 use App\Models\Task;
@@ -49,6 +50,22 @@ class TaskStoreRequest extends BaseFormRequest
                 'integer',
                 'min:0',
                 'max:2147483647',
+            ],
+            // Whether the task is public (anyone with project access) or private
+            'is_public' => [
+                'nullable',
+                'boolean',
+            ],
+            // Members granted access to the task (relevant for private tasks)
+            'member_ids' => [
+                'nullable',
+                'array',
+            ],
+            'member_ids.*' => [
+                ExistsEloquent::make(Member::class, null, function (Builder $builder): Builder {
+                    /** @var Builder<Member> $builder */
+                    return $builder->whereBelongsTo($this->organization, 'organization');
+                })->uuid(),
             ],
         ];
     }

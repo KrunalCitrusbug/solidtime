@@ -17,6 +17,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string|null $description
  * @property string $organization_id
+ * @property string|null $user_id
  * @property bool $is_public
  * @property Carbon|null $public_until
  * @property string|null $share_secret

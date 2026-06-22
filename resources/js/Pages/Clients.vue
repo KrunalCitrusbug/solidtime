@@ -11,12 +11,14 @@ import ClientCreateModal from '@/Components/Common/Client/ClientCreateModal.vue'
 import PageTitle from '@/Components/Common/PageTitle.vue';
 import { canCreateClients } from '@/utils/permissions';
 import { TabBar, TabBarItem } from '@/packages/ui/src';
+import TextInput from '@/packages/ui/src/Input/TextInput.vue';
 import { useStorage } from '@vueuse/core';
 import type { SortColumn, SortDirection } from '@/Components/Common/Client/ClientTable.vue';
 
 const { clients } = useClientsQuery();
 
 const activeTab = ref<'active' | 'archived'>('active');
+const search = ref('');
 
 const createClient = ref(false);
 
@@ -41,11 +43,12 @@ function handleSort(column: SortColumn, direction: SortDirection) {
 }
 
 const shownClients = computed(() => {
+    const q = search.value.trim().toLowerCase();
     return clients.value.filter((client) => {
-        if (activeTab.value === 'active') {
-            return !client.is_archived;
-        }
-        return client.is_archived;
+        const matchesTab =
+            activeTab.value === 'active' ? !client.is_archived : client.is_archived;
+        const matchesSearch = q === '' || client.name.toLowerCase().includes(q);
+        return matchesTab && matchesSearch;
     });
 });
 </script>
@@ -61,9 +64,19 @@ const shownClients = computed(() => {
                     <TabBarItem value="archived"> Archived </TabBarItem>
                 </TabBar>
             </div>
-            <SecondaryButton v-if="canCreateClients()" :icon="PlusIcon" @click="createClient = true"
-                >Create Client</SecondaryButton
-            >
+            <div class="flex items-center gap-3">
+                <TextInput
+                    v-model="search"
+                    type="search"
+                    placeholder="Search clients..."
+                    class="w-48" />
+                <SecondaryButton
+                    v-if="canCreateClients()"
+                    :icon="PlusIcon"
+                    @click="createClient = true"
+                    >Create Client</SecondaryButton
+                >
+            </div>
             <ClientCreateModal v-model:show="createClient"></ClientCreateModal>
         </MainContainer>
         <ClientTable

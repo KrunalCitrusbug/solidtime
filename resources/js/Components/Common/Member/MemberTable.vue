@@ -17,6 +17,7 @@ export type SortDirection = 'asc' | 'desc';
 const props = defineProps<{
     sortColumn: SortColumn;
     sortDirection: SortDirection;
+    search?: string;
 }>();
 
 const emit = defineEmits<{
@@ -82,7 +83,13 @@ function handleSort(column: SortColumn) {
 
 const table = useVueTable({
     get data() {
-        return members.value;
+        const q = (props.search ?? '').trim().toLowerCase();
+        return q
+            ? members.value.filter(
+                  (m) =>
+                      m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+              )
+            : members.value;
     },
     columns,
     getCoreRowModel: getCoreRowModel(),

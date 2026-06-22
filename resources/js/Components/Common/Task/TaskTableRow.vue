@@ -1,23 +1,35 @@
 <script setup lang="ts">
 import type { Task } from '@/packages/api/src';
-import { CheckCircleIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, GlobeAltIcon, LockClosedIcon } from '@heroicons/vue/20/solid';
 import { useTasksStore } from '@/utils/useTasks';
 import TaskMoreOptionsDropdown from '@/Components/Common/Task/TaskMoreOptionsDropdown.vue';
 import TableRow from '@/Components/TableRow.vue';
 import { canDeleteTasks } from '@/utils/permissions';
 import TaskEditModal from '@/Components/Common/Task/TaskEditModal.vue';
-import { ref, inject, type ComputedRef } from 'vue';
-import { isAllowedToPerformPremiumAction } from '@/utils/billing';
-import EstimatedTimeProgress from '@/packages/ui/src/EstimatedTimeProgress.vue';
-import UpgradeBadge from '@/Components/Common/UpgradeBadge.vue';
-import { formatHumanReadableDuration } from '../../../packages/ui/src/utils/time';
-import type { Organization } from '@/packages/api/src';
+import { ref, computed } from 'vue';
+import { useMembersQuery } from '@/utils/useMembersQuery';
 
 const props = defineProps<{
     task: Task;
 }>();
 
-const organization = inject<ComputedRef<Organization>>('organization');
+const { members } = useMembersQuery();
+
+type TaskWithVisibility = Task & { is_public?: boolean; member_ids?: string[] };
+
+const taskV = computed(() => props.task as TaskWithVisibility);
+const isPublic = computed(() => taskV.value.is_public !== false);
+
+const accessLabel = computed(() => {
+    if (isPublic.value) return null;
+    const ids = taskV.value.member_ids ?? [];
+    if (ids.length === 0) return 'Members Only';
+    const names = ids
+        .map((id) => members.value.find((m) => m.id === id)?.name ?? null)
+        .filter(Boolean) as string[];
+    if (names.length <= 3) return names.join(', ');
+    return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
+});
 
 function deleteTask() {
     useTasksStore().deleteTask(props.task.id);
@@ -42,25 +54,15 @@ const showTaskEditModal = ref(false);
             </span>
         </div>
         <div
-            class="whitespace-nowrap px-3 py-4 text-sm text-text-secondary flex space-x-1 items-center font-medium">
-            <span v-if="task.spent_time">
-                {{
-                    formatHumanReadableDuration(
-                        task.spent_time,
-                        organization?.interval_format,
-                        organization?.number_format
-                    )
-                }}
-            </span>
-            <span v-else> -- </span>
-        </div>
-        <div class="whitespace-nowrap px-3 flex items-center text-sm text-text-secondary">
-            <UpgradeBadge v-if="!isAllowedToPerformPremiumAction()"></UpgradeBadge>
-            <EstimatedTimeProgress
-                v-else-if="task.estimated_time"
-                :estimated="task.estimated_time"
-                :current="task.spent_time"></EstimatedTimeProgress>
-            <span v-else> -- </span>
+            class="whitespace-nowrap px-3 py-4 text-sm text-text-primary flex items-center gap-1.5 font-medium min-w-0">
+            <template v-if="isPublic">
+                <GlobeAltIcon class="w-4 h-4 text-icon-default flex-shrink-0" />
+                <span>All Members</span>
+            </template>
+            <template v-else>
+                <LockClosedIcon class="w-4 h-4 text-icon-default flex-shrink-0" />
+                <span class="truncate text-text-secondary">{{ accessLabel }}</span>
+            </template>
         </div>
         <div
             class="whitespace-nowrap px-3 py-4 text-sm text-text-secondary flex space-x-1 items-center font-medium">

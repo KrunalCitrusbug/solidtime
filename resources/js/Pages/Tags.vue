@@ -10,9 +10,11 @@ import PageTitle from '@/Components/Common/PageTitle.vue';
 import { canCreateTags } from '@/utils/permissions';
 import { useTagsStore } from '@/utils/useTags';
 import { useStorage } from '@vueuse/core';
+import TextInput from '@/packages/ui/src/Input/TextInput.vue';
 import type { SortColumn, SortDirection } from '@/Components/Common/Tag/TagTable.vue';
 
 const showCreateTagModal = ref(false);
+const search = ref('');
 
 interface TagTableState {
     sortColumn: SortColumn;
@@ -46,18 +48,26 @@ async function createTag(tag: string) {
             <div class="flex items-center space-x-6">
                 <PageTitle :icon="TagIcon" title="Tags"></PageTitle>
             </div>
-            <SecondaryButton
-                v-if="canCreateTags()"
-                :icon="PlusIcon"
-                @click="showCreateTagModal = true"
-                >Create Tag
-            </SecondaryButton>
+            <div class="flex items-center gap-3">
+                <TextInput
+                    v-model="search"
+                    type="search"
+                    placeholder="Search tags..."
+                    class="w-48" />
+                <SecondaryButton
+                    v-if="canCreateTags()"
+                    :icon="PlusIcon"
+                    @click="showCreateTagModal = true"
+                    >Create Tag
+                </SecondaryButton>
+            </div>
             <TagCreateModal
                 v-model:show="showCreateTagModal"
                 :create-tag="createTag"></TagCreateModal>
         </MainContainer>
         <TagTable
             :create-tag="createTag"
+            :search="search"
             :sort-column="tableState.sortColumn"
             :sort-direction="tableState.sortDirection"
             @sort="handleSort"></TagTable>

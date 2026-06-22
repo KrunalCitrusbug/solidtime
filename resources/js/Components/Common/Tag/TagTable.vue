@@ -23,6 +23,7 @@ const props = defineProps<{
     createTag: (name: string) => Promise<Tag | undefined>;
     sortColumn: SortColumn;
     sortDirection: SortDirection;
+    search?: string;
 }>();
 
 const emit = defineEmits<{
@@ -60,7 +61,8 @@ function handleSort(column: SortColumn) {
 
 const table = useVueTable({
     get data() {
-        return tags.value;
+        const q = (props.search ?? '').trim().toLowerCase();
+        return q ? tags.value.filter((t) => t.name.toLowerCase().includes(q)) : tags.value;
     },
     columns,
     getCoreRowModel: getCoreRowModel(),
