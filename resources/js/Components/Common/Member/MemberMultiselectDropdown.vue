@@ -2,8 +2,14 @@
 import MultiselectDropdown from '@/packages/ui/src/Input/MultiselectDropdown.vue';
 import { useMembersQuery } from '@/utils/useMembersQuery';
 import type { Member } from '@/packages/api/src';
+import { computed } from 'vue';
 
-const { members } = useMembersQuery();
+const props = defineProps<{
+    members?: Member[];
+}>();
+
+const { members: allMembers } = useMembersQuery();
+const memberList = computed(() => props.members ?? allMembers.value);
 
 function getKeyFromItem(item: Member) {
     return item.id;
@@ -21,7 +27,7 @@ const emit = defineEmits<{
 <template>
     <MultiselectDropdown
         search-placeholder="Search for a Member..."
-        :items="members"
+        :items="memberList"
         :get-key-from-item="getKeyFromItem"
         :get-name-for-item="getNameForItem"
         @submit="emit('submit')">

@@ -17,7 +17,7 @@ class TaskResource extends BaseResource
     /**
      * Transform the resource into an array.
      *
-     * @return array<string, string|bool|int|null>
+     * @return array<string, string|bool|int|null|array<int, string>>
      */
     public function toArray(Request $request): array
     {
@@ -28,6 +28,10 @@ class TaskResource extends BaseResource
             'name' => $this->resource->name,
             /** @var bool $is_done Whether the task is done */
             'is_done' => $this->resource->is_done,
+            /** @var bool $is_public Whether the task is public (usable by anyone with project access) or private (only assigned members) */
+            'is_public' => $this->resource->is_public,
+            /** @var array<int, string> $member_ids IDs of members granted access to this task (for private tasks) */
+            'member_ids' => $this->resource->members->pluck('id')->values()->all(),
             /** @var string $project_id ID of the project */
             'project_id' => $this->resource->project_id,
             /** @var int|null $estimated_time Estimated time in seconds */

@@ -14,6 +14,8 @@ import DateRangePicker from '@/packages/ui/src/Input/DateRangePicker.vue';
 import TagDropdown from '@/packages/ui/src/Tag/TagDropdown.vue';
 import { useTagsQuery } from '@/utils/useTagsQuery';
 import { useTagsStore } from '@/utils/useTags';
+import { XMarkIcon } from '@heroicons/vue/16/solid';
+import { computed } from 'vue';
 
 type TimeEntryRoundingType = 'up' | 'down' | 'nearest';
 
@@ -37,6 +39,26 @@ const { tags } = useTagsQuery();
 
 async function createTag(name: string) {
     return await useTagsStore().createTag(name);
+}
+
+const hasActiveFilters = computed(
+    () =>
+        selectedMembers.value.length > 0 ||
+        selectedProjects.value.length > 0 ||
+        selectedTasks.value.length > 0 ||
+        selectedClients.value.length > 0 ||
+        selectedTags.value.length > 0 ||
+        billable.value !== null
+);
+
+function clearFilters() {
+    selectedMembers.value = [];
+    selectedProjects.value = [];
+    selectedTasks.value = [];
+    selectedClients.value = [];
+    selectedTags.value = [];
+    billable.value = null;
+    emit('submit');
 }
 </script>
 
@@ -125,6 +147,14 @@ async function createTag(name: string) {
                     v-model:type="roundingType"
                     v-model:minutes="roundingMinutes"
                     @change="emit('submit')" />
+                <button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    class="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition px-2 py-1.5"
+                    @click="clearFilters">
+                    <XMarkIcon class="w-4 h-4" />
+                    <span>Clear filters</span>
+                </button>
             </div>
             <div>
                 <DateRangePicker

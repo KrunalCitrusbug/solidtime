@@ -2,6 +2,8 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/packages/ui/src';
 import type { Role } from '@/types/jetstream';
 import { usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { filterRoles } from '@/utils/roles';
 
 const model = defineModel<string>({
     default: 'employee',
@@ -10,6 +12,9 @@ const model = defineModel<string>({
 const page = usePage<{
     availableRoles: Role[];
 }>();
+
+// Match the invite flow: only assignable roles (excludes Owner & Placeholder).
+const selectableRoles = computed(() => filterRoles(page.props.availableRoles));
 
 function getNameForKey(key: string | undefined) {
     const item = page.props.availableRoles.find((item) => item.key === key);
@@ -26,7 +31,7 @@ function getNameForKey(key: string | undefined) {
             <SelectValue>{{ getNameForKey(model) }}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-            <SelectItem v-for="role in page.props.availableRoles" :key="role.key" :value="role.key">
+            <SelectItem v-for="role in selectableRoles" :key="role.key" :value="role.key">
                 {{ role.name }}
             </SelectItem>
         </SelectContent>

@@ -190,6 +190,19 @@ class Project extends Model implements AuditableContract
     }
 
     /**
+     * Projects the given member is explicitly assigned to (project membership).
+     * Used to scope Managers to only the projects they manage.
+     *
+     * @param  Builder<Project>  $builder
+     */
+    public function scopeAssignedToMember(Builder $builder, Member $member): void
+    {
+        $builder->whereHas('members', function (Builder $builder) use ($member): Builder {
+            return $builder->where('member_id', '=', $member->getKey());
+        });
+    }
+
+    /**
      * @return Attribute<bool, never>
      */
     protected function isArchived(): Attribute

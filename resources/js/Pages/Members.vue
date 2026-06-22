@@ -13,6 +13,7 @@ import PageTitle from '@/Components/Common/PageTitle.vue';
 import InvitationTable from '@/Components/Common/Invitation/InvitationTable.vue';
 import { canCreateInvitations } from '@/utils/permissions';
 import { useStorage } from '@vueuse/core';
+import TextInput from '@/packages/ui/src/Input/TextInput.vue';
 import type { SortColumn, SortDirection } from '@/Components/Common/Member/MemberTable.vue';
 
 const inviteMember = ref(false);
@@ -22,6 +23,7 @@ defineProps<{
 }>();
 
 const activeTab = ref<'all' | 'invitations'>('all');
+const search = ref('');
 
 interface MemberTableState {
     sortColumn: SortColumn;
@@ -55,12 +57,20 @@ function handleSort(column: SortColumn, direction: SortDirection) {
                     <TabBarItem value="invitations">Invitations</TabBarItem>
                 </TabBar>
             </div>
-            <SecondaryButton
-                v-if="canCreateInvitations()"
-                :icon="PlusIcon"
-                @click="inviteMember = true"
-                >Invite member</SecondaryButton
-            >
+            <div class="flex items-center gap-3">
+                <TextInput
+                    v-if="activeTab === 'all'"
+                    v-model="search"
+                    type="search"
+                    placeholder="Search members..."
+                    class="w-48" />
+                <SecondaryButton
+                    v-if="canCreateInvitations()"
+                    :icon="PlusIcon"
+                    @click="inviteMember = true"
+                    >Invite member</SecondaryButton
+                >
+            </div>
             <MemberInviteModal
                 v-model:show="inviteMember"
                 :available-roles="availableRoles"
@@ -68,6 +78,7 @@ function handleSort(column: SortColumn, direction: SortDirection) {
         </MainContainer>
         <MemberTable
             v-if="activeTab === 'all'"
+            :search="search"
             :sort-column="tableState.sortColumn"
             :sort-direction="tableState.sortDirection"
             @sort="handleSort"></MemberTable>

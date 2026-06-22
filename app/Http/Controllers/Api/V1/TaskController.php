@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\Role;
 use App\Exceptions\Api\EntityStillInUseApiException;
 use App\Http\Requests\V1\Task\TaskIndexRequest;
 use App\Http\Requests\V1\Task\TaskStoreRequest;
@@ -62,11 +63,13 @@ class TaskController extends Controller
         $this->checkPermission($organization, 'tasks:view');
         $canViewAllTasks = $this->hasPermission($organization, 'tasks:view:all');
         $user = $this->user();
+        $member = $this->member($organization);
 
         $projectId = $request->input('project_id');
 
         $query = Task::query()
-            ->whereBelongsTo($organization, 'organization');
+            ->whereBelongsTo($organization, 'organization')
+            ->with('members:id');
 
         if ($projectId !== null) {
             $query->where('project_id', '=', $projectId);
@@ -74,6 +77,17 @@ class TaskController extends Controller
 
         if (! $canViewAllTasks) {
             $query->visibleByEmployee($user);
+        }
+        // Managers are scoped to tasks within the projects they manage.
+        if ($member->role === Role::Manager->value) {
+            $query->whereHas('project', function ($builder) use ($member): void {
+                /** @var \Illuminate\Database\Eloquent\Builder<Project> $builder */
+                $builder->assignedToMember($member);
+            });
+        }
+        // Private-task visibility applies to Employees and Managers (not Owner/Admin).
+        if (in_array($member->role, [Role::Employee->value, Role::Manager->value], true)) {
+            $query->visibleByMember($member);
         }
         $doneFilter = $request->getFilterDone();
         if ($doneFilter === 'true') {
@@ -110,13 +124,17 @@ class TaskController extends Controller
         $task = new Task;
         $task->name = $request->input('name');
         $task->project_id = $request->input('project_id');
+        $task->is_public = $request->has('is_public') ? (bool) $request->input('is_public') : true;
         if ($this->canAccessPremiumFeatures($organization) && $request->has('estimated_time')) {
             $task->estimated_time = $request->getEstimatedTime();
         }
         $task->organization()->associate($organization);
         $task->save();
 
-        return new TaskResource($task);
+        $memberIds = $request->input('member_ids');
+        $task->members()->sync(is_array($memberIds) ? $memberIds : []);
+
+        return new TaskResource($task->load('members:id'));
     }
 
     /**
@@ -146,9 +164,17 @@ class TaskController extends Controller
         if ($request->has('is_done')) {
             $task->done_at = $request->getIsDone() ? Carbon::now() : null;
         }
+        if ($request->has('is_public')) {
+            $task->is_public = (bool) $request->input('is_public');
+        }
         $task->save();
 
-        return new TaskResource($task);
+        if ($request->has('member_ids')) {
+            $memberIds = $request->input('member_ids');
+            $task->members()->sync(is_array($memberIds) ? $memberIds : []);
+        }
+
+        return new TaskResource($task->load('members:id'));
     }
 
     /**

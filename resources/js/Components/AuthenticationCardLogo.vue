@@ -3,9 +3,13 @@ import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
-    <Link :href="'/'">
+    <Link :href="'/'" class="flex flex-col items-center gap-4">
+        <img
+            src="/images/citrusbug-logo-full.png"
+            alt="Citrusbug Technolabs"
+            class="h-12 w-auto" />
         <svg
-            class="h-12 py-2 text-text-primary"
+            class="h-8 py-2 text-text-primary"
             viewBox="0 0 168 30"
             fill="none"
             xmlns="http://www.w3.org/2000/svg">

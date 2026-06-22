@@ -4,7 +4,8 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { FolderIcon, PlusIcon } from '@heroicons/vue/20/solid';
 import SecondaryButton from '@/packages/ui/src/Buttons/SecondaryButton.vue';
 import ProjectTable from '@/Components/Common/Project/ProjectTable.vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import TextInput from '@/packages/ui/src/Input/TextInput.vue';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import { useProjectsStore } from '@/utils/useProjects';
 import ProjectCreateModal from '@/packages/ui/src/Project/ProjectCreateModal.vue';
@@ -28,6 +29,7 @@ import type { SortColumn, SortDirection } from '@/Components/Common/Project/Proj
 // Fetch data using TanStack Query
 const { projects } = useProjectsQuery();
 const { clients } = useClientsQuery();
+const search = ref('');
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
 
 // Table state persisted in localStorage
@@ -69,7 +71,12 @@ function handleSort(column: SortColumn, direction: SortDirection) {
 
 // Filter projects based on current filters
 const filteredProjects = computed(() => {
+    const q = search.value.trim().toLowerCase();
     return projects.value.filter((project) => {
+        // Name search
+        if (q !== '' && !project.name.toLowerCase().includes(q)) {
+            return false;
+        }
         // Status filter
         if (tableState.value.filters.status === 'active' && project.is_archived) {
             return false;
@@ -140,12 +147,19 @@ const showBillableRate = computed(() => {
             <div class="flex items-center space-x-3 sm:space-x-6">
                 <PageTitle :icon="FolderIcon" title="Projects"></PageTitle>
             </div>
-            <SecondaryButton
-                v-if="canCreateProjects()"
-                :icon="PlusIcon"
-                @click="showCreateProjectModal = true"
-                >Create Project
-            </SecondaryButton>
+            <div class="flex items-center gap-3">
+                <TextInput
+                    v-model="search"
+                    type="search"
+                    placeholder="Search projects..."
+                    class="w-48" />
+                <SecondaryButton
+                    v-if="canCreateProjects()"
+                    :icon="PlusIcon"
+                    @click="showCreateProjectModal = true"
+                    >Create Project
+                </SecondaryButton>
+            </div>
             <ProjectCreateModal
                 v-model:show="showCreateProjectModal"
                 :create-project

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Requests\V1\Task;
 
 use App\Http\Requests\V1\BaseFormRequest;
+use App\Models\Member;
 use App\Models\Organization;
 use App\Models\Task;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Database\Eloquent\Builder;
+use Korridor\LaravelModelValidationRules\Rules\ExistsEloquent;
 use Korridor\LaravelModelValidationRules\Rules\UniqueEloquent;
 
 /**
@@ -44,6 +46,20 @@ class TaskUpdateRequest extends BaseFormRequest
                 'integer',
                 'min:0',
                 'max:2147483647',
+            ],
+            'is_public' => [
+                'nullable',
+                'boolean',
+            ],
+            'member_ids' => [
+                'nullable',
+                'array',
+            ],
+            'member_ids.*' => [
+                ExistsEloquent::make(Member::class, null, function (Builder $builder): Builder {
+                    /** @var Builder<Member> $builder */
+                    return $builder->whereBelongsTo($this->organization, 'organization');
+                })->uuid(),
             ],
         ];
     }

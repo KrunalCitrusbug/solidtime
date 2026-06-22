@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChartBarIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/vue/20/solid';
-import { NoSymbolIcon, UserGroupIcon } from '@heroicons/vue/20/solid';
+import { NoSymbolIcon, UserGroupIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { FolderIcon } from '@heroicons/vue/16/solid';
 import { computed, type ComputedRef, inject, ref } from 'vue';
 import { useStorage } from '@vueuse/core';
@@ -113,6 +113,18 @@ const selectedMembers = ref<string[]>([]);
 const selectedProjects = ref<string[]>([]);
 const excludedProjects = ref<string[]>([]);
 
+const hasActiveFilters = computed(
+    () =>
+        selectedMembers.value.length > 0 ||
+        selectedProjects.value.length > 0 ||
+        excludedProjects.value.length > 0
+);
+function clearFilters() {
+    selectedMembers.value = [];
+    selectedProjects.value = [];
+    excludedProjects.value = [];
+}
+
 // --- "Group by" (rows of the matrix) --------------------------------------
 const groupBy = useStorage<GroupingOption>('weekly-reporting-group', 'project');
 
@@ -205,9 +217,8 @@ const dayColumns = computed(() => {
     const cols: { key: string; weekday: string; date: string }[] = [];
     let day = getLocalizedDayJs(startDate.value).startOf('day');
     const end = getLocalizedDayJs(endDate.value).startOf('day');
-    // Guard against runaway ranges.
     let guard = 0;
-    while (!day.isAfter(end) && guard < 60) {
+    while (!day.isAfter(end) && guard < 400) {
         cols.push({
             key: day.format('YYYY-MM-DD'),
             weekday: day.format('ddd'),
@@ -312,6 +323,7 @@ const reportProperties = computed(
             group: groupBy.value,
             sub_group: 'day',
             history_group: 'day',
+            format: 'weekly',
         }) as CreateReportBodyProperties
 );
 
@@ -417,6 +429,14 @@ function onSaveReportClick() {
                             :icon="NoSymbolIcon" />
                     </template>
                 </ProjectMultiselectDropdown>
+                <button
+                    v-if="hasActiveFilters"
+                    type="button"
+                    class="flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition px-2 py-1.5"
+                    @click="clearFilters">
+                    <XMarkIcon class="w-4 h-4" />
+                    <span>Clear filters</span>
+                </button>
             </div>
         </MainContainer>
     </div>

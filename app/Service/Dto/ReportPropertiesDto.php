@@ -66,6 +66,20 @@ class ReportPropertiesDto implements Castable
     public ?int $roundingMinutes = null;
 
     /**
+     * Optional UI layout hint for how a saved report should be rendered when
+     * viewed (e.g. 'overview', 'weekly'). Does not affect data aggregation.
+     */
+    public ?string $format = null;
+
+    /**
+     * Optional per-format settings used to reproduce custom layouts when a
+     * report is viewed (e.g. excludeProjectIds + groupBy for attendance).
+     *
+     * @var array<string, mixed>|null
+     */
+    public ?array $formatConfig = null;
+
+    /**
      * Get the caster class to use when casting from / to this cast target.
      *
      * @param  array<string, mixed>  $arguments
@@ -125,6 +139,9 @@ class ReportPropertiesDto implements Castable
                 $dto->roundingType = isset($data->roundingType) ? TimeEntryRoundingType::from($data->roundingType) : null;
                 // Note: roundingMinutes was added later so it is possible that the value is missing in persisted reports in the DB
                 $dto->roundingMinutes = isset($data->roundingMinutes) ? (int) $data->roundingMinutes : null;
+                // Note: format is an optional UI hint added later; may be missing in older reports
+                $dto->format = isset($data->format) && is_string($data->format) ? $data->format : null;
+                $dto->formatConfig = isset($data->formatConfig) ? json_decode(json_encode($data->formatConfig) ?: 'null', true) : null;
 
                 return $dto;
             }
@@ -152,6 +169,8 @@ class ReportPropertiesDto implements Castable
                     'timezone' => $value->timezone,
                     'roundingType' => $value->roundingType?->value,
                     'roundingMinutes' => $value->roundingMinutes,
+                    'format' => $value->format,
+                    'formatConfig' => $value->formatConfig,
                 ];
 
                 $jsonString = json_encode($data);

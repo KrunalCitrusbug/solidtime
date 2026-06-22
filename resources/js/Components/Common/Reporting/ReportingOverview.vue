@@ -172,6 +172,7 @@ const reportProperties = computed(() => {
         group: group.value,
         sub_group: subGroup.value,
         history_group: getOptimalGroupingOption(startDate.value, endDate.value),
+        format: 'overview',
     } as CreateReportBodyProperties;
 });
 

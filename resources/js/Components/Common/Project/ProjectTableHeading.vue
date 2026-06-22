@@ -54,22 +54,6 @@ function isChevronUp(column: SortColumn): boolean {
             <span v-else class="w-4 h-4"></span>
         </div>
         <div
-            class="px-3 py-1.5 text-left text-text-tertiary cursor-pointer hover:bg-secondary hover:text-text-primary transition-colors select-none flex items-center gap-1"
-            @click="handleSort('spent_time')">
-            Total Time
-            <ChevronDownIcon v-if="isChevronDown('spent_time')" class="w-4 h-4" />
-            <ChevronUpIcon v-else-if="isChevronUp('spent_time')" class="w-4 h-4" />
-            <span v-else class="w-4 h-4"></span>
-        </div>
-        <div
-            class="px-3 py-1.5 text-left text-text-tertiary cursor-pointer hover:bg-secondary hover:text-text-primary transition-colors select-none flex items-center gap-1"
-            @click="handleSort('progress')">
-            Progress
-            <ChevronDownIcon v-if="isChevronDown('progress')" class="w-4 h-4" />
-            <ChevronUpIcon v-else-if="isChevronUp('progress')" class="w-4 h-4" />
-            <span v-else class="w-4 h-4"></span>
-        </div>
-        <div
             v-if="showBillableRate"
             class="px-3 py-1.5 text-left text-text-tertiary cursor-pointer hover:bg-secondary hover:text-text-primary transition-colors select-none flex items-center gap-1"
             @click="handleSort('billable_rate')">
@@ -89,11 +73,12 @@ function isChevronUp(column: SortColumn): boolean {
         <div
             class="px-3 py-1.5 text-left text-text-tertiary cursor-pointer hover:bg-secondary hover:text-text-primary transition-colors select-none flex items-center gap-1"
             @click="handleSort('visibility')">
-            Visibility
+            Access
             <ChevronDownIcon v-if="isChevronDown('visibility')" class="w-4 h-4" />
             <ChevronUpIcon v-else-if="isChevronUp('visibility')" class="w-4 h-4" />
             <span v-else class="w-4 h-4"></span>
         </div>
+        <div class="px-3 py-1.5 text-left text-text-tertiary">Task Access</div>
         <div class="relative py-1.5 pl-3 pr-4 sm:pr-6 lg:pr-8 3xl:pr-12">
             <span class="sr-only">Edit</span>
         </div>
