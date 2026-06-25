@@ -19,6 +19,10 @@ const emit = defineEmits<{
     createTimeEntry: [];
 }>();
 
+defineProps<{
+    allowManualEntry?: boolean;
+}>();
+
 const open = ref(false);
 
 function pauseLiveTimerUpdate(event: FocusEvent) {
@@ -142,7 +146,13 @@ function closeAndFocusInput() {
 
 <template>
     <div class="relative">
+        <span
+            v-if="allowManualEntry === false"
+            class="inline-flex w-[110px] lg:w-[120px] items-center justify-center py-2.5 text-base font-semibold text-text-primary">
+            {{ currentTime ?? '00:00:00' }}
+        </span>
         <Dropdown
+            v-else
             v-model="open"
             align="center"
             :auto-focus="false"

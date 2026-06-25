@@ -30,8 +30,9 @@ const roleOrder: Record<string, number> = {
     owner: 0,
     admin: 1,
     manager: 2,
-    employee: 3,
-    placeholder: 4,
+    team_lead: 3,
+    employee: 4,
+    placeholder: 5,
 };
 
 const sorting = computed<SortingState>(() => [

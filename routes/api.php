@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\TagController;
 use App\Http\Controllers\Api\V1\TaskController;
 use App\Http\Controllers\Api\V1\TimeEntryController;
+use App\Http\Controllers\Api\V1\TimeEntryInvestigationController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\UserMembershipController;
 use App\Http\Controllers\Api\V1\UserTimeEntryController;
@@ -110,6 +111,8 @@ Route::prefix('v1')->name('v1.')->group(static function (): void {
             Route::patch('/time-entries', [TimeEntryController::class, 'updateMultiple'])->name('update-multiple')->middleware('check-organization-blocked');
             Route::delete('/time-entries/{timeEntry}', [TimeEntryController::class, 'destroy'])->name('destroy');
             Route::delete('/time-entries', [TimeEntryController::class, 'destroyMultiple'])->name('destroy-multiple');
+            Route::get('/time-entry-investigations', [TimeEntryInvestigationController::class, 'index'])->name('investigations.index');
+            Route::patch('/time-entries/{timeEntry}/investigation', [TimeEntryInvestigationController::class, 'update'])->name('investigations.update');
         });
 
         Route::name('users.time-entries.')->group(static function (): void {

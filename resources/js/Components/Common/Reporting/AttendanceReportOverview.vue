@@ -19,7 +19,7 @@ import { SecondaryButton } from '@/packages/ui/src';
 import { api, type CreateReportBodyProperties } from '@/packages/api/src';
 import type { ExportFormat } from '@/types/reporting';
 import { getCurrentMembershipId, getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
-import { canCreateReports } from '@/utils/permissions';
+import { canCreateReports, canFilterReportsByMember, canViewOthersTimeEntries } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { useMembersQuery } from '@/utils/useMembersQuery';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
@@ -32,6 +32,7 @@ const { clients } = useClientsQuery();
 const { tasks } = useTasksQuery();
 
 const isEmployee = computed(() => getCurrentRole() === 'employee');
+const showMemberFilter = computed(() => canFilterReportsByMember());
 
 // Which dimension the lower matrix groups its rows by.
 type RowGroup = 'project' | 'user' | 'task' | 'client';
@@ -190,9 +191,11 @@ async function fetchAllEntries(): Promise<Entry[]> {
             queries: {
                 start: startUtc.value,
                 end: endUtc.value,
-                member_id: isEmployee.value ? (getCurrentMembershipId() ?? undefined) : undefined,
+                member_id: !canViewOthersTimeEntries()
+                    ? (getCurrentMembershipId() ?? undefined)
+                    : undefined,
                 member_ids:
-                    !isEmployee.value && selectedMembers.value.length > 0
+                    showMemberFilter.value && selectedMembers.value.length > 0
                         ? selectedMembers.value
                         : undefined,
                 limit,
@@ -626,9 +629,11 @@ const reportProperties = computed(
         ({
             start: startUtc.value,
             end: endUtc.value,
-            member_id: isEmployee.value ? (getCurrentMembershipId() ?? undefined) : undefined,
+            member_id: !canViewOthersTimeEntries()
+                ? (getCurrentMembershipId() ?? undefined)
+                : undefined,
             member_ids:
-                !isEmployee.value && selectedMembers.value.length > 0
+                showMemberFilter.value && selectedMembers.value.length > 0
                     ? selectedMembers.value
                     : undefined,
             // Attendance needs ALL entries (incl. excluded/lunch) so the shared
@@ -713,7 +718,7 @@ function onSaveReportClick() {
                 <DateRangePicker v-model:start="startDate" v-model:end="endDate" />
             </div>
 
-            <MemberMultiselectDropdown v-if="!isEmployee" v-model="selectedMembers">
+            <MemberMultiselectDropdown v-if="showMemberFilter" v-model="selectedMembers">
                 <template #trigger>
                     <ReportingFilterBadge
                         :count="selectedMembers.length"

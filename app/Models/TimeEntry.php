@@ -33,6 +33,10 @@ use Staudenmeir\EloquentJsonRelations\Relations\BelongsToJson;
  * @property string $member_id
  * @property bool $is_imported
  * @property Carbon|null $still_active_email_sent_at
+ * @property Carbon|null $investigation_flagged_at
+ * @property Carbon|null $long_entry_admin_notified_at
+ * @property string|null $investigation_reason
+ * @property Carbon|null $investigation_reviewed_at
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read User $user
@@ -75,6 +79,10 @@ class TimeEntry extends Model implements AuditableContract
         'billable_rate' => 'int',
         'is_imported' => 'bool',
         'still_active_email_sent_at' => 'datetime',
+        'investigation_flagged_at' => 'datetime',
+        'long_entry_admin_notified_at' => 'datetime',
+        'investigation_reason' => 'string',
+        'investigation_reviewed_at' => 'datetime',
     ];
 
     public const array SELECT_COLUMNS = [
@@ -95,6 +103,10 @@ class TimeEntry extends Model implements AuditableContract
         'client_id',
         'is_imported',
         'still_active_email_sent_at',
+        'investigation_flagged_at',
+        'long_entry_admin_notified_at',
+        'investigation_reason',
+        'investigation_reviewed_at',
     ];
 
     /**

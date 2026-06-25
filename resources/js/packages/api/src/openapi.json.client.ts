@@ -42,7 +42,7 @@ const InvitationResource = z
     .object({ id: z.string(), email: z.string(), role: z.string() })
     .passthrough();
 const InvitationStoreRequest = z
-    .object({ email: z.string().email(), role: z.enum(['admin', 'manager', 'employee']) })
+    .object({ email: z.string().email(), role: z.enum(['admin', 'manager', 'team_lead', 'employee']) })
     .passthrough();
 const InvoiceResource = z
     .object({
@@ -273,7 +273,7 @@ const MemberResource = z
         billable_rate: z.union([z.number(), z.null()]),
     })
     .passthrough();
-const Role = z.enum(['owner', 'admin', 'manager', 'employee', 'placeholder']);
+const Role = z.enum(['owner', 'admin', 'manager', 'team_lead', 'employee', 'placeholder']);
 const MemberUpdateRequest = z
     .object({ role: Role, billable_rate: z.union([z.number(), z.null()]) })
     .partial()

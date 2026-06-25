@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 #[CoversClass(DashboardController::class)]
 class DashboardEndpointTest extends EndpointTestAbstract
 {
-    public function test_showing_dashboard_succeeds_for_empty_user(): void
+    public function test_showing_dashboard_succeeds_for_admin_user(): void
     {
         // Arrange
         $user = User::factory()->withPersonalOrganization()->create();
@@ -27,7 +27,7 @@ class DashboardEndpointTest extends EndpointTestAbstract
         $response->assertSuccessful();
     }
 
-    public function test_showing_dashboard_succeeds_for_user_with_employee_role(): void
+    public function test_showing_dashboard_redirects_employee_to_time(): void
     {
         // Arrange
         $organization = Organization::factory()->create();
@@ -39,6 +39,6 @@ class DashboardEndpointTest extends EndpointTestAbstract
         $response = $this->get('/dashboard');
 
         // Assert
-        $response->assertSuccessful();
+        $response->assertRedirect('/time');
     }
 }

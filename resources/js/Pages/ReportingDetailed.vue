@@ -65,7 +65,7 @@ import type { ExportFormat } from '@/types/reporting';
 import { useNotificationsStore } from '@/utils/notification';
 import TimeEntryMassActionRow from '@/packages/ui/src/TimeEntry/TimeEntryMassActionRow.vue';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
-import { canCreateProjects, canViewAllTimeEntries } from '@/utils/permissions';
+import { canCreateProjects, canUpdateAllTimeEntries, canViewOthersTimeEntries, canReassignTimeEntries } from '@/utils/permissions';
 import ReportingExportModal from '@/Components/Common/Reporting/ReportingExportModal.vue';
 import ReportingFilterBar from '@/Components/Common/Reporting/ReportingFilterBar.vue';
 import { useTimeEntriesReportQuery } from '@/utils/useTimeEntriesReportQuery';
@@ -113,7 +113,7 @@ function getFilterAttributes() {
     };
     const params = {
         ...defaultParams,
-        member_id: !canViewAllTimeEntries() ? getCurrentMembershipId() : undefined,
+        member_id: !canViewOthersTimeEntries() ? getCurrentMembershipId() : undefined,
         member_ids: selectedMembers.value.length > 0 ? selectedMembers.value : undefined,
         project_ids: selectedProjects.value.length > 0 ? selectedProjects.value : undefined,
         task_ids: selectedTasks.value.length > 0 ? selectedTasks.value : undefined,
@@ -386,6 +386,7 @@ function onSaveReportClick() {
             v-model:end-date="endDate"
             @submit="updateFilteredTimeEntries" />
         <TimeEntryMassActionRow
+            v-if="canUpdateAllTimeEntries()"
             :selected-time-entries="selectedTimeEntries"
             :can-create-project="canCreateProjects()"
             :enable-estimated-time="isAllowedToPerformPremiumAction()"
@@ -434,6 +435,8 @@ function onSaveReportClick() {
                     is-report
                     show-date
                     show-member
+                    :allow-member-assignment="canReassignTimeEntries()"
+                    :read-only="!canUpdateAllTimeEntries()"
                     :time-entry="entry"
                     @selected="selectedTimeEntries.push(entry)"
                     @unselected="

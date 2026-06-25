@@ -2,7 +2,6 @@ import type { Component } from 'vue';
 import {
     HomeIcon,
     ClockIcon,
-    CalendarIcon,
     ChartBarIcon,
     FolderIcon,
     UserCircleIcon,
@@ -64,11 +63,14 @@ export function createNavigationCommands(
         canViewProjects: () => boolean;
         canViewClients: () => boolean;
         canViewMembers: () => boolean;
+        canViewMembersPage: () => boolean;
+        canBrowseOrganizationDirectory: () => boolean;
         canViewTags: () => boolean;
         canViewReport: () => boolean;
         canViewInvoices: () => boolean;
         canManageBilling: () => boolean;
         canUpdateOrganization: () => boolean;
+        canViewDashboard: () => boolean;
     },
     features: {
         isInvoicingActivated: () => boolean;
@@ -84,6 +86,7 @@ export function createNavigationCommands(
             keywords: ['home', 'overview', 'dashboard'],
             group: 'navigation',
             action: () => navigate('dashboard'),
+            permission: permissions.canViewDashboard,
             priority: GROUP_PRIORITIES.navigation + 10,
         },
         {
@@ -94,15 +97,6 @@ export function createNavigationCommands(
             group: 'navigation',
             action: () => navigate('time'),
             priority: GROUP_PRIORITIES.navigation + 9,
-        },
-        {
-            id: 'nav-calendar',
-            label: 'Go to Calendar',
-            icon: CalendarIcon,
-            keywords: ['calendar', 'week', 'schedule'],
-            group: 'navigation',
-            action: () => navigate('calendar'),
-            priority: GROUP_PRIORITIES.navigation + 8,
         },
         {
             id: 'nav-reporting',
@@ -139,7 +133,7 @@ export function createNavigationCommands(
             keywords: ['projects', 'work'],
             group: 'navigation',
             action: () => navigate('projects'),
-            permission: permissions.canViewProjects,
+            permission: permissions.canBrowseOrganizationDirectory,
             priority: GROUP_PRIORITIES.navigation + 4,
         },
         {
@@ -149,7 +143,7 @@ export function createNavigationCommands(
             keywords: ['clients', 'customers'],
             group: 'navigation',
             action: () => navigate('clients'),
-            permission: permissions.canViewClients,
+            permission: permissions.canBrowseOrganizationDirectory,
             priority: GROUP_PRIORITIES.navigation + 3,
         },
         {
@@ -159,7 +153,7 @@ export function createNavigationCommands(
             keywords: ['members', 'team', 'users', 'employees'],
             group: 'navigation',
             action: () => navigate('members'),
-            permission: permissions.canViewMembers,
+            permission: permissions.canViewMembersPage,
             priority: GROUP_PRIORITIES.navigation + 2,
         },
         {
@@ -232,6 +226,7 @@ export function createTimerCommands(
         stopTimer: () => Promise<void>;
         openCreateTimeEntryModal: () => void;
         continueLastEntry: () => Promise<void>;
+        canCreateManualTimeEntry: () => boolean;
     },
     conditions: {
         isActive: () => boolean;
@@ -266,6 +261,7 @@ export function createTimerCommands(
             keywords: ['create', 'manual', 'log', 'time', 'entry', 'new'],
             group: 'timer',
             action: timerActions.openCreateTimeEntryModal,
+            condition: timerActions.canCreateManualTimeEntry,
             priority: GROUP_PRIORITIES.timer + 5,
         },
         {

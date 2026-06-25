@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/vue3';
+import { getCurrentRole } from '@/utils/useUser';
 
 const page = usePage<{
     auth: {
@@ -69,6 +70,17 @@ export function canViewMembers() {
     return currentUserHasPermission('members:view');
 }
 
+export function canViewMembersPage(): boolean {
+    return canViewMembers() && !isTeamLeadRole();
+}
+
+export function canBrowseOrganizationDirectory(): boolean {
+    return (
+        currentUserHasPermission('projects:view:all') ||
+        currentUserHasPermission('clients:view:all')
+    );
+}
+
 export function canUpdateMembers() {
     return currentUserHasPermission('members:update');
 }
@@ -125,6 +137,65 @@ export function canDeleteReport() {
 
 export function canViewAllTimeEntries() {
     return currentUserHasPermission('time-entries:view:all');
+}
+
+/** Manager, Admin, Owner — org-wide time entry visibility and member filters. */
+export function canViewOrganizationWideTimeEntries(): boolean {
+    const role = getCurrentRole();
+    return role === 'owner' || role === 'admin' || role === 'manager';
+}
+
+/** Team Lead — scoped to assigned projects (enforced on API). */
+export function isTeamLeadRole(): boolean {
+    return getCurrentRole() === 'team_lead';
+}
+
+/** Can view other people's entries (org-wide or project-scoped). */
+export function canViewOthersTimeEntries(): boolean {
+    return canViewOrganizationWideTimeEntries() || isTeamLeadRole();
+}
+
+/** Member filter on Time page — Manager+ only. */
+export function canFilterByMember(): boolean {
+    return canViewOrganizationWideTimeEntries();
+}
+
+/** Member filter on Reporting pages — Manager+ and Team Lead (scoped member list). */
+export function canFilterReportsByMember(): boolean {
+    return canViewOrganizationWideTimeEntries() || isTeamLeadRole();
+}
+
+export function canCreateTimeEntriesForOthers() {
+    return currentUserHasPermission('time-entries:create:all');
+}
+
+export function canReassignTimeEntries() {
+    return currentUserHasPermission('time-entries:update:all');
+}
+
+export function canUpdateAllTimeEntries() {
+    return currentUserHasPermission('time-entries:update:all');
+}
+
+export function canViewDashboard(): boolean {
+    const role = getCurrentRole();
+    return role === 'owner' || role === 'admin';
+}
+
+export function canViewTimeLogInvestigation(): boolean {
+    return canViewDashboard();
+}
+
+/** Manual logging (modal, timesheet cells, duration picker) — not the live start/stop timer. */
+export function canCreateManualTimeEntries(): boolean {
+    const role = getCurrentRole();
+    if (role === 'employee' || role === 'manager' || role === 'team_lead') {
+        return false;
+    }
+    return (
+        currentUserHasPermission('time-entries:create:all') ||
+        currentUserHasPermission('time-entries:update:all')
+    );
 }
 export function canViewInvoices() {
     return currentUserHasPermission('invoices:view');

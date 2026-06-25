@@ -33,7 +33,7 @@ import TimeEntryCreateModal from '@/packages/ui/src/TimeEntry/TimeEntryCreateMod
 import { useClientsStore } from '@/utils/useClients';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
-import { canCreateProjects } from '@/utils/permissions';
+import { canCreateProjects, canCreateManualTimeEntries, canCreateTimeEntriesForOthers } from '@/utils/permissions';
 import { ref } from 'vue';
 import { useNotificationsStore } from '@/utils/notification';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
@@ -60,6 +60,11 @@ const { clients } = useClientsQuery();
 
 const emit = defineEmits<{
     change: [];
+}>();
+
+const props = defineProps<{
+    allowMemberSelection?: boolean;
+    defaultMemberId?: string;
 }>();
 
 const showManualTimeEntryModal = ref(false);
@@ -147,6 +152,7 @@ const { tags } = useTagsQuery();
 
 <template>
     <TimeEntryCreateModal
+        v-if="canCreateManualTimeEntries()"
         v-model:show="showManualTimeEntryModal"
         :enable-estimated-time="isAllowedToPerformPremiumAction()"
         :create-project="createProject"
@@ -159,7 +165,9 @@ const { tags } = useTagsQuery();
         :projects
         :tasks
         :tags
-        :clients></TimeEntryCreateModal>
+        :clients
+        :allow-member-selection="allowMemberSelection ?? canCreateTimeEntriesForOthers()"
+        :default-member-id="defaultMemberId"></TimeEntryCreateModal>
     <CardTitle title="Time Tracker" :icon="ClockIcon"></CardTitle>
     <div class="relative pt-1.5">
         <TimeTrackerRunningInDifferentOrganizationOverlay
@@ -186,6 +194,7 @@ const { tags } = useTagsQuery();
                         :time-entries
                         :create-tag
                         :is-active
+                        :allow-manual-entry="canCreateManualTimeEntries()"
                         :currency="getOrganizationCurrencyString()"
                         @start-live-timer="startLiveTimer"
                         @stop-live-timer="stopLiveTimer"
@@ -195,7 +204,9 @@ const { tags } = useTagsQuery();
                         @create-time-entry="createTimeEntryFromCurrentEntry"></TimeTrackerControls>
                 </div>
                 <TimeTrackerMoreOptionsDropdown
+                    v-if="isActive || canCreateManualTimeEntries()"
                     :has-active-timer="isActive"
+                    :show-manual-entry="canCreateManualTimeEntries()"
                     @manual-entry="showManualTimeEntryModal = true"
                     @discard="discardCurrentTimeEntry"></TimeTrackerMoreOptionsDropdown>
             </div>

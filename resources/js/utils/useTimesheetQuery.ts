@@ -1,5 +1,5 @@
 import { useQuery, type QueryClient } from '@tanstack/vue-query';
-import { api, type TimeEntry, type TimeEntryResponse } from '@/packages/api/src';
+import { api, type TimeEntryResponse } from '@/packages/api/src';
 import { getCurrentMembershipId, getCurrentOrganizationId } from '@/utils/useUser';
 import { computed, type Ref } from 'vue';
 import type { Dayjs } from 'dayjs';
@@ -19,29 +19,17 @@ async function fetchTimesheetEntries(
     start: string,
     end: string
 ): Promise<TimeEntryResponse> {
-    const allEntries: TimeEntry[] = [];
+    const response = await api.getTimeEntries({
+        params: { organization: organizationId },
+        queries: {
+            start,
+            end,
+            member_id: memberId,
+            limit: 500,
+        },
+    });
 
-    while (true) {
-        const response = await api.getTimeEntries({
-            params: { organization: organizationId },
-            queries: {
-                start,
-                end,
-                member_id: memberId,
-                offset: allEntries.length || undefined,
-            },
-        });
-
-        if (response.data.length === 0) {
-            return { data: allEntries, meta: response.meta };
-        }
-
-        allEntries.push(...response.data);
-
-        if (allEntries.length >= response.meta.total) {
-            return { data: allEntries, meta: response.meta };
-        }
-    }
+    return response;
 }
 
 export function useTimesheetQuery(

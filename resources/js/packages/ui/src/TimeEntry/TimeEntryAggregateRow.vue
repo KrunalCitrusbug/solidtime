@@ -50,6 +50,7 @@ const props = defineProps<{
     selectedTimeEntries: TimeEntry[];
     enableEstimatedTime: boolean;
     canCreateProject: boolean;
+    readOnly?: boolean;
 }>();
 const emit = defineEmits<{
     selected: [TimeEntry[]];
@@ -108,6 +109,7 @@ function onSelectChange(checked: boolean) {
                         <!-- Desktop layout -->
                         <div class="hidden @lg:flex space-x-3 items-center min-w-0">
                             <Checkbox
+                                v-if="!readOnly"
                                 :checked="
                                     timeEntry.timeEntries.every((aggregateTimeEntry: TimeEntry) =>
                                         selectedTimeEntries.includes(aggregateTimeEntry)
@@ -122,11 +124,13 @@ function onSelectChange(checked: boolean) {
                                 </GroupedItemsCountButton>
                                 <TimeEntryDescriptionInput
                                     class="min-w-0 mr-4 shrink"
+                                    :read-only="readOnly"
                                     :model-value="timeEntry.description"
                                     @changed="
                                         updateTimeEntryDescription
                                     "></TimeEntryDescriptionInput>
                                 <TimeTrackerProjectTaskDropdown
+                                    v-if="!readOnly"
                                     class="min-w-0 shrink"
                                     :clients
                                     :create-project
@@ -146,6 +150,7 @@ function onSelectChange(checked: boolean) {
                         </div>
                         <div
                             class="hidden @lg:flex items-center font-medium space-x-1 @lg:space-x-2 shrink-0">
+                            <template v-if="!readOnly">
                             <TimeEntryRowTagDropdown
                                 :create-tag
                                 :tags="tags"
@@ -156,6 +161,7 @@ function onSelectChange(checked: boolean) {
                                 size="small"
                                 faded
                                 @changed="updateTimeEntryBillable"></BillableToggleButton>
+                            </template>
                             <div class="flex-1">
                                 <button
                                     :class="
@@ -194,6 +200,7 @@ function onSelectChange(checked: boolean) {
                                 class="opacity-60 flex group-hover:opacity-100 focus-visible:opacity-100"
                                 @changed="onStartStopClick(timeEntry)"></TimeTrackerStartStop>
                             <TimeEntryMoreOptionsDropdown
+                                v-if="!readOnly"
                                 :show-edit="false"
                                 :show-duplicate="false"
                                 @delete="
@@ -212,6 +219,7 @@ function onSelectChange(checked: boolean) {
                                     </GroupedItemsCountButton>
                                     <TimeEntryDescriptionInput
                                         class="min-w-0 flex-1"
+                                        :read-only="readOnly"
                                         :model-value="timeEntry.description"
                                         @changed="
                                             updateTimeEntryDescription
@@ -232,6 +240,7 @@ function onSelectChange(checked: boolean) {
                             <!-- Second row: project/task - tags - billable - start - more -->
                             <div class="flex items-center justify-between mt-1">
                                 <TimeTrackerProjectTaskDropdown
+                                    v-if="!readOnly"
                                     class="min-w-0"
                                     :clients
                                     :create-project
@@ -248,6 +257,7 @@ function onSelectChange(checked: boolean) {
                                         updateProjectAndTask
                                     "></TimeTrackerProjectTaskDropdown>
                                 <div class="flex items-center shrink-0">
+                                    <template v-if="!readOnly">
                                     <TimeEntryRowTagDropdown
                                         :create-tag
                                         :tags="tags"
@@ -258,6 +268,7 @@ function onSelectChange(checked: boolean) {
                                         :model-value="timeEntry.billable"
                                         size="small"
                                         @changed="updateTimeEntryBillable"></BillableToggleButton>
+                                    </template>
                                     <TimeTrackerStartStop
                                         :active="!!(timeEntry.start && !timeEntry.end)"
                                         variant="secondary"
@@ -303,6 +314,7 @@ function onSelectChange(checked: boolean) {
                         :duplicate-time-entry="() => duplicateTimeEntry(subEntry)"
                         :currency="currency"
                         :create-tag
+                        :read-only="readOnly"
                         :time-entry="subEntry"
                         @selected="emit('selected', [subEntry])"
                         @unselected="emit('unselected', [subEntry])"></TimeEntryRow>
@@ -316,8 +328,9 @@ function onSelectChange(checked: boolean) {
                 <PlayIcon class="w-4 h-4 text-icon-default" />
                 <span>Continue</span>
             </ContextMenuItem>
-            <ContextMenuSeparator />
+            <ContextMenuSeparator v-if="!readOnly" />
             <ContextMenuItem
+                v-if="!readOnly"
                 class="space-x-3 text-destructive"
                 @select="deleteTimeEntries(timeEntry?.timeEntries ?? [])">
                 <TrashIcon class="w-4 h-4 text-icon-default" />

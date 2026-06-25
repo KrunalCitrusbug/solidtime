@@ -72,6 +72,7 @@ class AddOrganizationMember implements AddsTeamMembers
                 Rule::in([
                     Role::Admin->value,
                     Role::Manager->value,
+                    Role::TeamLead->value,
                     Role::Employee->value,
                 ]),
             ],

@@ -2,9 +2,15 @@
 import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '..';
 
-const props = defineProps<{
-    hasActiveTimer: boolean;
-}>();
+const props = withDefaults(
+    defineProps<{
+        hasActiveTimer: boolean;
+        showManualEntry?: boolean;
+    }>(),
+    {
+        showManualEntry: true,
+    }
+);
 
 const emit = defineEmits<{
     manualEntry: [];
@@ -34,6 +40,7 @@ const emit = defineEmits<{
         </DropdownMenuTrigger>
         <DropdownMenuContent class="min-w-[150px]" align="end">
             <DropdownMenuItem
+                v-if="showManualEntry"
                 class="flex items-center space-x-3 cursor-pointer"
                 @click="emit('manualEntry')">
                 <PlusIcon class="w-5" />

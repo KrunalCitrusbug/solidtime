@@ -14,6 +14,8 @@ import type {
     Client,
 } from '@/packages/api/src';
 import { computed, nextTick, ref, watch } from 'vue';
+import { useNotificationsStore } from '@/utils/notification';
+import { isEmployee } from '@/utils/useUser';
 import type { Dayjs } from 'dayjs';
 import { useFocus } from '@vueuse/core';
 import { autoUpdate, flip, limitShift, offset, shift, useFloating } from '@floating-ui/vue';
@@ -41,6 +43,7 @@ const props = defineProps<{
     organizationBillableRate: number | null;
     enableEstimatedTime: boolean;
     canCreateProject: boolean;
+    allowManualEntry?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -112,6 +115,14 @@ function onToggleButtonPress(newState: boolean) {
             currentTimeEntryDescriptionInput.value?.focus();
         }
     } else {
+        currentTimeEntry.value.description = tempDescription.value;
+        if (isEmployee() && !tempDescription.value?.trim()) {
+            useNotificationsStore().addNotification(
+                'error',
+                'Description is required to stop the timer.'
+            );
+            return;
+        }
         emit('stopTimer');
     }
 }
@@ -283,6 +294,7 @@ useSelectEvents(
                     <TimeTrackerRangeSelector
                         v-model:current-time-entry="currentTimeEntry"
                         v-model:live-timer="liveTimer"
+                        :allow-manual-entry="allowManualEntry !== false"
                         @start-live-timer="emit('startLiveTimer')"
                         @stop-live-timer="emit('stopLiveTimer')"
                         @update-timer="emit('updateTimeEntry')"

@@ -8,6 +8,8 @@ import {
     canViewProjects,
     canViewClients,
     canViewMembers,
+    canViewMembersPage,
+    canBrowseOrganizationDirectory,
     canViewTags,
     canViewReport,
     canViewInvoices,
@@ -18,6 +20,8 @@ import {
     canCreateTasks,
     canCreateTags,
     canCreateInvitations,
+    canCreateManualTimeEntries,
+    canViewDashboard,
 } from '@/utils/permissions';
 import { isBillingActivated, isInvoicingActivated } from '@/utils/billing';
 import { useTimeEntriesInfiniteQuery } from '@/utils/useTimeEntriesInfiniteQuery';
@@ -256,11 +260,14 @@ export function useCommandPalette() {
                 canViewProjects,
                 canViewClients,
                 canViewMembers,
+                canViewMembersPage,
+                canBrowseOrganizationDirectory,
                 canViewTags,
                 canViewReport,
                 canViewInvoices,
                 canManageBilling,
                 canUpdateOrganization,
+                canViewDashboard,
             },
             {
                 isInvoicingActivated,
@@ -277,6 +284,7 @@ export function useCommandPalette() {
                 stopTimer,
                 openCreateTimeEntryModal,
                 continueLastEntry,
+                canCreateManualTimeEntry: canCreateManualTimeEntries,
             },
             {
                 isActive: () => isActive.value,

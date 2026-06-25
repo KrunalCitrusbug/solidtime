@@ -26,7 +26,7 @@ import UpgradeModal from '@/Components/Common/UpgradeModal.vue';
 import { api, type CreateReportBodyProperties } from '@/packages/api/src';
 import type { ExportFormat } from '@/types/reporting';
 import { getCurrentMembershipId, getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
-import { canCreateReports } from '@/utils/permissions';
+import { canCreateReports, canFilterReportsByMember, canViewOthersTimeEntries } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import { useClientsQuery } from '@/utils/useClientsQuery';
@@ -37,6 +37,7 @@ const { clients } = useClientsQuery();
 const { tasks } = useTasksQuery();
 
 const isEmployee = computed(() => getCurrentRole() === 'employee');
+const showMemberFilter = computed(() => canFilterReportsByMember());
 
 // --- Week selection -------------------------------------------------------
 function now() {
@@ -172,9 +173,11 @@ async function fetchAllEntries(): Promise<Entry[]> {
             queries: {
                 start: startUtc.value,
                 end: endUtc.value,
-                member_id: isEmployee.value ? (getCurrentMembershipId() ?? undefined) : undefined,
+                member_id: !canViewOthersTimeEntries()
+                    ? (getCurrentMembershipId() ?? undefined)
+                    : undefined,
                 member_ids:
-                    !isEmployee.value && selectedMembers.value.length > 0
+                    showMemberFilter.value && selectedMembers.value.length > 0
                         ? selectedMembers.value
                         : undefined,
                 limit,
@@ -564,9 +567,11 @@ const reportProperties = computed(
         ({
             start: startUtc.value,
             end: endUtc.value,
-            member_id: isEmployee.value ? (getCurrentMembershipId() ?? undefined) : undefined,
+            member_id: !canViewOthersTimeEntries()
+                ? (getCurrentMembershipId() ?? undefined)
+                : undefined,
             member_ids:
-                !isEmployee.value && selectedMembers.value.length > 0
+                showMemberFilter.value && selectedMembers.value.length > 0
                     ? selectedMembers.value
                     : undefined,
             project_ids: savedProjectIds.value,
@@ -662,7 +667,7 @@ function onSaveReportClick() {
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <div class="text-sm font-medium">Filters</div>
-                <MemberMultiselectDropdown v-if="!isEmployee" v-model="selectedMembers">
+                <MemberMultiselectDropdown v-if="showMemberFilter" v-model="selectedMembers">
                     <template #trigger>
                         <ReportingFilterBadge
                             :count="selectedMembers.length"

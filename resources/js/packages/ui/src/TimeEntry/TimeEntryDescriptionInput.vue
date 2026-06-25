@@ -4,6 +4,10 @@ import { computed, ref, watch } from 'vue';
 const value = defineModel();
 const emit = defineEmits(['changed']);
 
+defineProps<{
+    readOnly?: boolean;
+}>();
+
 function onChange(event: Event) {
     const target = event.target as HTMLInputElement;
     if (target.value !== value.value) {
@@ -43,8 +47,12 @@ const displaysPlaceholder = computed(() => {
             <input
                 data-testid="time_entry_description"
                 :value="liveDataValue"
+                :readonly="readOnly"
                 placeholder="Add a description"
-                class="absolute px-0 h-full min-w-0 pl-1.5 @lg:pl-3 pr-1 left-0 top-0 w-full text-sm text-text-primary bg-transparent focus-visible:ring-0 rounded-lg border-0"
+                :class="[
+                    'absolute px-0 h-full min-w-0 pl-1.5 @lg:pl-3 pr-1 left-0 top-0 w-full text-sm text-text-primary bg-transparent focus-visible:ring-0 rounded-lg border-0',
+                    readOnly ? 'cursor-default' : '',
+                ]"
                 @blur="onChange"
                 @input="onInput"
                 @keydown.enter="onChange" />

@@ -37,7 +37,7 @@ import { useAggregatedTimeEntriesQuery } from '@/utils/useAggregatedTimeEntriesQ
 import { type GroupingOption, useReportingStore } from '@/utils/useReporting';
 import { useProjectsQuery } from '@/utils/useProjectsQuery';
 import { useNotificationsStore } from '@/utils/notification';
-import { canCreateReports } from '@/utils/permissions';
+import { canCreateReports, canFilterReportsByMember, canViewOthersTimeEntries } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 
 const organization = inject<ComputedRef<Organization>>('organization');
@@ -149,10 +149,12 @@ const baseParams = computed<AggregatedTimeEntriesQueryParams>(() => {
     return {
         start: getLocalizedDayJs(startDate.value).startOf('day').utc().format(),
         end: getLocalizedDayJs(endDate.value).endOf('day').utc().format(),
-        member_ids: selectedMembers.value.length > 0 ? selectedMembers.value : undefined,
+        member_ids:
+            canFilterReportsByMember() && selectedMembers.value.length > 0
+                ? selectedMembers.value
+                : undefined,
         project_ids: effectiveProjectIds.value,
-        // Employees are restricted to their own time entries.
-        member_id: getCurrentRole() === 'employee' ? getCurrentMembershipId() : undefined,
+        member_id: !canViewOthersTimeEntries() ? getCurrentMembershipId() : undefined,
     };
 });
 
@@ -402,7 +404,7 @@ function onSaveReportClick() {
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <div class="text-sm font-medium">Filters</div>
-                <MemberMultiselectDropdown v-model="selectedMembers">
+                <MemberMultiselectDropdown v-if="canFilterReportsByMember()" v-model="selectedMembers">
                     <template #trigger>
                         <ReportingFilterBadge
                             :count="selectedMembers.length"

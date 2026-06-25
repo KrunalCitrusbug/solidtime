@@ -4,7 +4,6 @@ import Banner from '@/Components/Banner.vue';
 import OrganizationSwitcher from '@/Components/OrganizationSwitcher.vue';
 import CurrentSidebarTimer from '@/Components/CurrentSidebarTimer.vue';
 import {
-    CalendarIcon,
     ChartBarIcon,
     ClockIcon,
     Cog6ToothIcon,
@@ -18,10 +17,11 @@ import {
     XMarkIcon,
     DocumentTextIcon,
     TableCellsIcon,
+    ExclamationTriangleIcon,
 } from '@heroicons/vue/20/solid';
 import { PanelLeft } from 'lucide-vue-next';
 import NavigationSidebarItem from '@/Components/NavigationSidebarItem.vue';
-import UserSettingsIcon from '@/Components/UserSettingsIcon.vue';
+import SidebarUserProfile from '@/Components/SidebarUserProfile.vue';
 import MainContainer from '@/packages/ui/src/MainContainer.vue';
 import { computed, nextTick, onMounted, provide, ref } from 'vue';
 import NotificationContainer from '@/Components/NotificationContainer.vue';
@@ -33,24 +33,26 @@ import {
     canViewClients,
     canViewInvoices,
     canViewMembers,
+    canViewMembersPage,
+    canBrowseOrganizationDirectory,
     canViewProjects,
     canViewReport,
     canViewTags,
+    canViewDashboard,
+    canViewTimeLogInvestigation,
 } from '@/utils/permissions';
 import { isBillingActivated, isInvoicingActivated } from '@/utils/billing';
 import type { User } from '@/types/models';
 import { ArrowsRightLeftIcon } from '@heroicons/vue/16/solid';
 import { fetchToken, isTokenValid } from '@/utils/session';
-import UpdateSidebarNotification from '@/Components/UpdateSidebarNotification.vue';
 import BillingBanner from '@/Components/Billing/BillingBanner.vue';
 import UserTimezoneMismatchModal from '@/Components/Common/User/UserTimezoneMismatchModal.vue';
 import { useTheme } from '@/utils/theme';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
-import { getCurrentOrganizationId, getCurrentRole } from '@/utils/useUser';
+import { getCurrentOrganizationId } from '@/utils/useUser';
 import LoadingSpinner from '@/packages/ui/src/LoadingSpinner.vue';
 import { twMerge } from 'tailwind-merge';
 import { Button } from '@/packages/ui/src/Buttons';
-import { openFeedback } from '@/utils/feedback';
 import { CommandPaletteProvider } from '@/Components/CommandPalette';
 import { useCommandPalette } from '@/utils/useCommandPalette';
 
@@ -66,13 +68,14 @@ const sidebarVisible = ref(false);
 
 // The "Manage" group (Projects, Clients, Members, Tags…) is only shown to
 // organization admins/owners — not to managers or employees.
-const isAdmin = computed(() => ['owner', 'admin'].includes(getCurrentRole() ?? ''));
+const isAdmin = computed(() => canViewDashboard());
 const showManageGroup = computed(
     () =>
         isAdmin.value &&
+        canBrowseOrganizationDirectory() &&
         (canViewProjects() ||
             canViewClients() ||
-            canViewMembers() ||
+            canViewMembersPage() ||
             canViewTags() ||
             (isInvoicingActivated() && canViewInvoices()))
 );
@@ -185,20 +188,22 @@ const page = usePage<{
                     <nav class="pt-2">
                         <ul>
                             <NavigationSidebarItem
+                                v-if="isAdmin"
                                 title="Dashboard"
                                 :icon="HomeIcon"
                                 :href="route('dashboard')"
                                 :current="route().current('dashboard')"></NavigationSidebarItem>
                             <NavigationSidebarItem
+                                v-if="canViewTimeLogInvestigation()"
+                                title="Time log investigation"
+                                :icon="ExclamationTriangleIcon"
+                                :href="route('time-log-investigation')"
+                                :current="route().current('time-log-investigation')"></NavigationSidebarItem>
+                            <NavigationSidebarItem
                                 title="Time"
                                 :icon="ClockIcon"
                                 :current="route().current('time')"
                                 :href="route('time')"></NavigationSidebarItem>
-                            <NavigationSidebarItem
-                                title="Calendar"
-                                :icon="CalendarIcon"
-                                :current="route().current('calendar')"
-                                :href="route('calendar')"></NavigationSidebarItem>
                             <NavigationSidebarItem
                                 title="Timesheet"
                                 :icon="TableCellsIcon"
@@ -261,19 +266,19 @@ const page = usePage<{
                     <nav v-if="showManageGroup">
                         <ul>
                             <NavigationSidebarItem
-                                v-if="canViewProjects()"
+                                v-if="canViewProjects() && canBrowseOrganizationDirectory()"
                                 title="Projects"
                                 :icon="FolderIcon"
                                 :href="route('projects')"
                                 :current="route().current('projects')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewClients()"
+                                v-if="canViewClients() && canBrowseOrganizationDirectory()"
                                 title="Clients"
                                 :icon="UserCircleIcon"
                                 :current="route().current('clients')"
                                 :href="route('clients')"></NavigationSidebarItem>
                             <NavigationSidebarItem
-                                v-if="canViewMembers()"
+                                v-if="canViewMembersPage()"
                                 title="Members"
                                 :icon="UserGroupIcon"
                                 :current="route().current('members')"
@@ -326,26 +331,7 @@ const page = usePage<{
                     </nav>
                 </div>
                 <div class="justify-self-end">
-                    <UpdateSidebarNotification></UpdateSidebarNotification>
-                    <ul
-                        class="border-t border-default-background-separator pt-3 gap-1 flex justify-between items-center">
-                        <UserSettingsIcon></UserSettingsIcon>
-
-                        <NavigationSidebarItem
-                            class="flex-1"
-                            title="Profile Settings"
-                            :icon="Cog6ToothIcon"
-                            :href="route('profile.show')"></NavigationSidebarItem>
-
-                        <Button
-                            v-if="page.props.has_services_extension"
-                            variant="outline"
-                            size="xs"
-                            class="rounded-full ml-2 flex h-6 w-6 items-center text-xs text-icon-default justify-center"
-                            @click="openFeedback">
-                            ?
-                        </Button>
-                    </ul>
+                    <SidebarUserProfile />
                 </div>
             </div>
         </div>

@@ -6,7 +6,7 @@ import { useMembersQuery } from '@/utils/useMembersQuery';
 import { useProjectMembersStore } from '@/utils/useProjectMembers';
 import ProjectMemberMoreOptionsDropdown from '@/Components/Common/ProjectMember/ProjectMemberMoreOptionsDropdown.vue';
 import { formatCents } from '@/packages/ui/src/utils/money';
-import { capitalizeFirstLetter } from '@/utils/format';
+import { capitalizeFirstLetter, formatMemberNameWithEmail } from '@/utils/format';
 import ProjectMemberEditModal from '@/Components/Common/ProjectMember/ProjectMemberEditModal.vue';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import type { Organization } from '@/packages/api/src';
@@ -39,12 +39,12 @@ const showEditModal = ref(false);
     <TableRow>
         <ProjectMemberEditModal
             v-model:show="showEditModal"
-            :name="member?.name"
+            :name="member ? formatMemberNameWithEmail(member) : ''"
             :project-member="projectMember"></ProjectMemberEditModal>
         <div
             class="whitespace-nowrap flex items-center space-x-5 3xl:pl-12 py-4 pr-3 text-sm font-medium text-text-primary pl-4 sm:pl-6 lg:pl-8 3xl:pl-12">
             <span>
-                {{ member?.name }}
+                {{ member ? formatMemberNameWithEmail(member) : '—' }}
             </span>
         </div>
         <div class="whitespace-nowrap px-3 py-4 text-sm text-text-secondary">

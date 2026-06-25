@@ -51,9 +51,8 @@ class ProjectController extends Controller
         $projectsQuery = Project::query()
             ->whereBelongsTo($organization, 'organization');
 
-        // Managers are scoped to only the projects they are assigned to (manage),
-        // even though they hold the projects:view:all permission. Owner/Admin see all.
-        if ($currentMember->role === Role::Manager->value) {
+        // Team leads are scoped to projects they are assigned to. Owner/Admin/Managers see all.
+        if ($currentMember->role === Role::TeamLead->value) {
             $projectsQuery->assignedToMember($currentMember);
         } elseif (! $canViewAllProjects) {
             $projectsQuery->visibleByEmployee($user);

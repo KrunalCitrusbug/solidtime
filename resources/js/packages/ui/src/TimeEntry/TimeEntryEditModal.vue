@@ -14,6 +14,7 @@ import type {
     Project,
     Client,
     TimeEntry,
+    Member,
 } from '@/packages/api/src';
 import TagDropdown from '@/packages/ui/src/Tag/TagDropdown.vue';
 import BillableIcon from '@/packages/ui/src/Icons/BillableIcon.vue';
@@ -25,6 +26,7 @@ import DurationHumanInput from '@/packages/ui/src/Input/DurationHumanInput.vue';
 import { InformationCircleIcon } from '@heroicons/vue/20/solid';
 import type { Tag, Task } from '@/packages/api/src';
 import TimePickerSimple from '@/packages/ui/src/Input/TimePickerSimple.vue';
+import MemberCombobox from '@/Components/Common/Member/MemberCombobox.vue';
 
 const show = defineModel('show', { default: false });
 const saving = ref(false);
@@ -33,7 +35,7 @@ const deleting = ref(false);
 const props = defineProps<{
     timeEntry: TimeEntry | null;
     enableEstimatedTime: boolean;
-    updateTimeEntry: (entry: TimeEntry) => Promise<void>;
+    updateTimeEntry: (entry: TimeEntry & { member_id?: string }) => Promise<void>;
     deleteTimeEntry: (timeEntryId: string) => Promise<void>;
     createClient: (client: CreateClientBody) => Promise<Client | undefined>;
     createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
@@ -45,6 +47,8 @@ const props = defineProps<{
     currency: string;
     organizationBillableRate: number | null;
     canCreateProject: boolean;
+    allowMemberAssignment?: boolean;
+    members?: Member[];
 }>();
 
 const description = ref<HTMLInputElement | null>(null);
@@ -58,12 +62,23 @@ watch(show, (value) => {
 });
 
 const editableTimeEntry = ref<TimeEntry | null>(null);
+const selectedMemberId = ref('');
+
+function syncMemberFromEntry(entry: TimeEntry | null) {
+    if (!entry || !props.members?.length) {
+        selectedMemberId.value = '';
+        return;
+    }
+    selectedMemberId.value =
+        props.members.find((member) => member.user_id === entry.user_id)?.id ?? '';
+}
 
 watch(
     () => props.timeEntry,
     (newTimeEntry) => {
         if (newTimeEntry) {
             editableTimeEntry.value = { ...newTimeEntry };
+            syncMemberFromEntry(newTimeEntry);
         }
     },
     { immediate: true }
@@ -108,7 +123,11 @@ async function submit() {
     if (editableTimeEntry.value) {
         saving.value = true;
         try {
-            await props.updateTimeEntry(editableTimeEntry.value);
+            const payload: TimeEntry & { member_id?: string } = { ...editableTimeEntry.value };
+            if (props.allowMemberAssignment && selectedMemberId.value) {
+                payload.member_id = selectedMemberId.value;
+            }
+            await props.updateTimeEntry(payload);
             show.value = false;
         } finally {
             saving.value = false;
@@ -149,6 +168,12 @@ const billableProxy = computed({
 
         <template #content>
             <div v-if="editableTimeEntry" class="space-y-4">
+                <div v-if="allowMemberAssignment" class="pb-1">
+                    <Field>
+                        <FieldLabel>Employee</FieldLabel>
+                        <MemberCombobox v-model="selectedMemberId" class="w-full" />
+                    </Field>
+                </div>
                 <div class="sm:flex items-end space-y-2 sm:space-y-0 sm:space-x-4">
                     <div class="flex-1">
                         <TextInput

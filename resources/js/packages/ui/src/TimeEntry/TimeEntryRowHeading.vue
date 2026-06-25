@@ -16,6 +16,7 @@ defineProps<{
     date: string;
     duration: number;
     checked: boolean;
+    readOnly?: boolean;
 }>();
 const emit = defineEmits<{
     selectAll: [];
@@ -39,6 +40,11 @@ function selectUnselectAll(value: boolean) {
                 <div class="flex items-center @lg:space-x-2 pl-1.5 @lg:pl-0">
                     <div class="w-5 hidden @lg:block">
                         <CalendarIcon
+                            v-if="readOnly"
+                            class="w-3 @sm:w-4 text-icon-default block">
+                        </CalendarIcon>
+                        <template v-else>
+                        <CalendarIcon
                             class="w-3 @sm:w-4 text-icon-default group-hover:hidden block">
                         </CalendarIcon>
 
@@ -46,6 +52,7 @@ function selectUnselectAll(value: boolean) {
                             :checked="checked"
                             class="group-hover:block hidden"
                             @update:checked="selectUnselectAll"></Checkbox>
+                        </template>
                     </div>
                     <span class="text-text-primary">
                         {{ formatWeekday(date) }}

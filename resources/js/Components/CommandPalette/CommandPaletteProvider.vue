@@ -11,7 +11,7 @@ import { getOrganizationCurrencyString } from '@/utils/money';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
 import { getCurrentOrganizationId } from '@/utils/useUser';
-import { canCreateProjects } from '@/utils/permissions';
+import { canCreateProjects, canCreateManualTimeEntries, canCreateTimeEntriesForOthers } from '@/utils/permissions';
 import type {
     CreateClientBody,
     CreateProjectBody,
@@ -186,6 +186,7 @@ const firstProjectId = computed(() => projects.value[0]?.id ?? '');
 
     <!-- Time Entry Create Modal -->
     <TimeEntryCreateModal
+        v-if="canCreateManualTimeEntries()"
         v-model:show="showCreateTimeEntryModal"
         :create-time-entry="createTimeEntry"
         :create-project="createProject"
@@ -198,6 +199,7 @@ const firstProjectId = computed(() => projects.value[0]?.id ?? '');
         :currency="getOrganizationCurrencyString()"
         :enable-estimated-time="isAllowedToPerformPremiumAction()"
         :can-create-project="canCreateProjects()"
+        :allow-member-selection="canCreateTimeEntriesForOthers()"
         :organization-billable-rate="organization?.billable_rate ?? null" />
 
     <!-- Project Selector Dialog for Active Timer -->

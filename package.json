@@ -22,7 +22,11 @@
         "build:api": "npm run build --workspace=@solidtime/api",
         "build:packages": "npm run build:api && npm run build:ui",
         "watch:ui": "npm run watch --workspace=@solidtime/ui",
-        "watch:api": "npm run watch --workspace=@solidtime/api"
+        "watch:api": "npm run watch --workspace=@solidtime/api",
+        "docker:build": "docker build -f Dockerfile.weekly -t solidtime-local:latest .",
+        "docker:up": "docker compose -f docker-compose.local.yml -p solidtime-local up -d",
+        "docker:deploy": "npm run build && npm run docker:build && docker compose -f docker-compose.local.yml -p solidtime-local up -d --force-recreate app scheduler queue",
+        "docker:migrate": "docker compose -f docker-compose.local.yml -p solidtime-local exec app php artisan migrate --force"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3.2.0",

@@ -26,7 +26,10 @@ import { getOrganizationCurrencyString } from '@/utils/money';
 import TimeEntryMassActionRow from '@/packages/ui/src/TimeEntry/TimeEntryMassActionRow.vue';
 import type { UpdateMultipleTimeEntriesChangeset } from '@/packages/api/src';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
-import { canCreateProjects } from '@/utils/permissions';
+import { canCreateProjects, canUpdateAllTimeEntries, canViewOthersTimeEntries, canFilterByMember, canCreateTimeEntriesForOthers, canReassignTimeEntries } from '@/utils/permissions';
+import { useMembersQuery } from '@/utils/useMembersQuery';
+import MemberCombobox from '@/Components/Common/Member/MemberCombobox.vue';
+import { useSessionStorage } from '@vueuse/core';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
 import { getCurrentOrganizationId } from '@/utils/useUser';
 import { useTagsStore } from '@/utils/useTags';
@@ -35,8 +38,10 @@ import { useClientsStore } from '@/utils/useClients';
 import { useTimeEntriesInfiniteQuery } from '@/utils/useTimeEntriesInfiniteQuery';
 import { useTimeEntriesMutations } from '@/utils/useTimeEntriesMutations';
 
+const selectedMemberId = useSessionStorage<string>('time-page-member-filter', '');
+
 const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
-    useTimeEntriesInfiniteQuery();
+    useTimeEntriesInfiniteQuery(selectedMemberId);
 const {
     createTimeEntry: createTimeEntryMutation,
     updateTimeEntry,
@@ -79,6 +84,7 @@ const { tasks } = useTasksQuery();
 const { clients } = useClientsQuery();
 
 const { tags } = useTagsQuery();
+const { members } = useMembersQuery();
 
 async function createTag(name: string) {
     return await useTagsStore().createTag(name);
@@ -105,11 +111,23 @@ function deleteSelected() {
 </script>
 
 <template>
-    <AppLayout title="Dashboard" data-testid="time_view">
+    <AppLayout title="Time" data-testid="time_view">
         <MainContainer class="pt-5 lg:pt-8 pb-4 lg:pb-6">
-            <TimeTracker></TimeTracker>
+            <TimeTracker
+                :allow-member-selection="canCreateTimeEntriesForOthers()"
+                :default-member-id="selectedMemberId || undefined"></TimeTracker>
+            <div
+                v-if="canFilterByMember()"
+                class="mt-4 flex flex-wrap items-center gap-2 px-2 sm:px-0">
+                <span class="text-sm font-medium text-text-secondary">View entries for:</span>
+                <MemberCombobox v-model="selectedMemberId" class="w-full max-w-xs" />
+                <span v-if="!selectedMemberId" class="text-xs text-text-tertiary">
+                    Showing all employees
+                </span>
+            </div>
         </MainContainer>
         <TimeEntryMassActionRow
+            v-if="canUpdateAllTimeEntries()"
             :selected-time-entries="selectedTimeEntries"
             :enable-estimated-time="isAllowedToPerformPremiumAction()"
             :can-create-project="canCreateProjects()"
@@ -153,6 +171,10 @@ function deleteSelected() {
             :currency="getOrganizationCurrencyString()"
             :time-entries="timeEntries"
             :group-similar-time-entries="groupSimilarTimeEntriesSetting"
+            :read-only="!canUpdateAllTimeEntries()"
+            :members="members"
+            :show-member="canViewOthersTimeEntries()"
+            :allow-member-assignment="canReassignTimeEntries()"
             :tags="tags"></TimeEntryGroupedTable>
         <div v-if="isPending" class="flex justify-center items-center py-12">
             <LoadingSpinner></LoadingSpinner>

@@ -44,3 +44,4 @@ yarn-error.log
 /config/composer
 .env1
 .env.bak.*
+data-backup/users.csv

@@ -18,7 +18,7 @@ import TimeEntryRowDurationInput from '@/packages/ui/src/TimeEntry/TimeEntryRowD
 import TimeEntryMoreOptionsDropdown from '@/packages/ui/src/TimeEntry/TimeEntryMoreOptionsDropdown.vue';
 import { TimeEntryEditModal } from '@/packages/ui/src';
 import BillableToggleButton from '@/packages/ui/src/Input/BillableToggleButton.vue';
-import { computed, ref } from 'vue';
+import { computed, inject, ref, type ComputedRef } from 'vue';
 import TimeTrackerProjectTaskDropdown from '@/packages/ui/src/TimeTracker/TimeTrackerProjectTaskDropdown.vue';
 import {
     Checkbox,
@@ -29,6 +29,13 @@ import {
     ContextMenuTrigger,
 } from '@/packages/ui/src';
 import { PlayIcon, PencilIcon, DocumentDuplicateIcon, TrashIcon } from '@heroicons/vue/20/solid';
+import {
+    formatHumanReadableDuration,
+    formatStartEnd,
+} from '@/packages/ui/src/utils/time';
+import type { Organization } from '@/packages/api/src';
+
+const organization = inject<ComputedRef<Organization>>('organization');
 
 const props = defineProps<{
     timeEntry: TimeEntry;
@@ -53,6 +60,8 @@ const props = defineProps<{
     canCreateProject: boolean;
     enableEstimatedTime: boolean;
     isReport?: boolean;
+    readOnly?: boolean;
+    allowMemberAssignment?: boolean;
 }>();
 
 const emit = defineEmits<{ selected: []; unselected: [] }>();
@@ -128,13 +137,18 @@ async function handleDeleteTimeEntry() {
                     <div class="@xl:flex py-2 min-w-0 items-center justify-between group">
                         <!-- Desktop layout -->
                         <div class="hidden @lg:flex items-center min-w-0">
-                            <Checkbox :checked="selected" @update:checked="onSelectChange" />
+                            <Checkbox
+                                v-if="!readOnly"
+                                :checked="selected"
+                                @update:checked="onSelectChange" />
                             <div v-if="indent === true" class="w-10 h-7"></div>
                             <TimeEntryDescriptionInput
                                 class="min-w-0 mr-4 shrink"
+                                :read-only="readOnly"
                                 :model-value="timeEntry.description"
                                 @changed="updateTimeEntryDescription"></TimeEntryDescriptionInput>
                             <TimeTrackerProjectTaskDropdown
+                                v-if="!readOnly"
                                 class="min-w-0 shrink"
                                 :create-project
                                 :create-client
@@ -153,6 +167,7 @@ async function handleDeleteTimeEntry() {
                             <div v-if="showMember && members" class="text-sm px-2">
                                 {{ memberName }}
                             </div>
+                            <template v-if="!readOnly">
                             <TimeEntryRowTagDropdown
                                 :create-tag
                                 :tags="tags"
@@ -175,13 +190,32 @@ async function handleDeleteTimeEntry() {
                                 :end="timeEntry.end"
                                 :is-report="props.isReport"
                                 @changed="updateStartEndTime"></TimeEntryRowDurationInput>
+                            </template>
+                            <div v-else class="flex items-center space-x-2 text-sm text-text-secondary">
+                                <span>{{
+                                    formatStartEnd(
+                                        timeEntry.start,
+                                        timeEntry.end,
+                                        organization?.time_format
+                                    )
+                                }}</span>
+                                <span class="text-text-primary font-medium">{{
+                                    formatHumanReadableDuration(
+                                        timeEntry.duration ?? 0,
+                                        organization?.interval_format,
+                                        organization?.number_format
+                                    )
+                                }}</span>
+                            </div>
                             <TimeTrackerStartStop
                                 :active="!!(timeEntry.start && !timeEntry.end)"
                                 variant="secondary"
                                 class="opacity-60 flex focus-visible:opacity-100 group-hover:opacity-100"
                                 @changed="onStartStopClick"></TimeTrackerStartStop>
                             <TimeEntryMoreOptionsDropdown
+                                v-if="!readOnly"
                                 @edit="handleEdit"
+                                :show-duplicate="!!duplicateTimeEntry"
                                 @duplicate="duplicateTimeEntry"
                                 @delete="deleteTimeEntry"></TimeEntryMoreOptionsDropdown>
                         </div>
@@ -191,19 +225,33 @@ async function handleDeleteTimeEntry() {
                             <div class="flex items-center justify-between min-w-0">
                                 <TimeEntryDescriptionInput
                                     class="min-w-0 flex-1"
+                                    :read-only="readOnly"
                                     :model-value="timeEntry.description"
                                     @changed="
                                         updateTimeEntryDescription
                                     "></TimeEntryDescriptionInput>
                                 <TimeEntryRowDurationInput
+                                    v-if="!readOnly"
                                     :start="timeEntry.start"
                                     :end="timeEntry.end"
                                     :is-report="props.isReport"
                                     @changed="updateStartEndTime"></TimeEntryRowDurationInput>
+                                <span
+                                    v-else
+                                    class="text-text-primary min-w-[80px] px-1.5 py-1.5 text-sm font-medium text-right">
+                                    {{
+                                        formatHumanReadableDuration(
+                                            timeEntry.duration ?? 0,
+                                            organization?.interval_format,
+                                            organization?.number_format
+                                        )
+                                    }}
+                                </span>
                             </div>
                             <!-- Second row: project/task - tags - billable - start - more -->
                             <div class="flex items-center justify-between mt-1">
                                 <TimeTrackerProjectTaskDropdown
+                                    v-if="!readOnly"
                                     class="min-w-0"
                                     :create-project
                                     :create-client
@@ -220,6 +268,7 @@ async function handleDeleteTimeEntry() {
                                         updateProjectAndTask
                                     "></TimeTrackerProjectTaskDropdown>
                                 <div class="flex items-center shrink-0">
+                                    <template v-if="!readOnly">
                                     <TimeEntryRowTagDropdown
                                         :create-tag
                                         :tags="tags"
@@ -230,13 +279,16 @@ async function handleDeleteTimeEntry() {
                                         :model-value="timeEntry.billable"
                                         size="small"
                                         @changed="updateTimeEntryBillable"></BillableToggleButton>
+                                    </template>
                                     <TimeTrackerStartStop
                                         :active="!!(timeEntry.start && !timeEntry.end)"
                                         variant="secondary"
                                         class="ml-2"
                                         @changed="onStartStopClick"></TimeTrackerStartStop>
                                     <TimeEntryMoreOptionsDropdown
+                                        v-if="!readOnly"
                                         @edit="handleEdit"
+                                        :show-duplicate="!!duplicateTimeEntry"
                                         @duplicate="duplicateTimeEntry"
                                         @delete="deleteTimeEntry"></TimeEntryMoreOptionsDropdown>
                                 </div>
@@ -251,6 +303,7 @@ async function handleDeleteTimeEntry() {
                 <PlayIcon class="w-4 h-4 text-icon-default" />
                 <span>Continue</span>
             </ContextMenuItem>
+            <template v-if="!readOnly">
             <ContextMenuItem class="space-x-3" @select="handleEdit()">
                 <PencilIcon class="w-4 h-4 text-icon-default" />
                 <span>Edit</span>
@@ -264,6 +317,7 @@ async function handleDeleteTimeEntry() {
                 <TrashIcon class="w-4 h-4 text-icon-default" />
                 <span>Delete</span>
             </ContextMenuItem>
+            </template>
         </ContextMenuContent>
     </ContextMenu>
 
@@ -283,7 +337,9 @@ async function handleDeleteTimeEntry() {
         :clients="clients"
         :currency="currency"
         :organization-billable-rate="organizationBillableRate"
-        :can-create-project="canCreateProject" />
+        :can-create-project="canCreateProject"
+        :allow-member-assignment="allowMemberAssignment"
+        :members="members" />
 </template>
 
 <style scoped></style>

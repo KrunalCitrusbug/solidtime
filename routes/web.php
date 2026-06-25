@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Web\DashboardController;
 use App\Http\Controllers\Web\HomeController;
+use App\Http\Controllers\Web\TimeLogInvestigationController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Jetstream\Jetstream;
@@ -32,13 +33,13 @@ Route::middleware([
 ])->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'dashboard'])->name('dashboard');
 
+    Route::get('/time-log-investigation', [TimeLogInvestigationController::class, 'index'])->name('time-log-investigation');
+
     Route::get('/time', function () {
         return Inertia::render('Time');
     })->name('time');
 
-    Route::get('/calendar', function () {
-        return Inertia::render('Calendar');
-    })->name('calendar');
+    Route::redirect('/calendar', '/time')->name('calendar');
 
     Route::get('/timesheet', function () {
         return Inertia::render('Timesheet');

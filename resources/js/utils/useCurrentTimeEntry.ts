@@ -8,6 +8,7 @@ import {
     getCurrentMembershipId,
     getCurrentOrganizationId,
     getCurrentUserId,
+    isEmployee,
 } from '@/utils/useUser';
 import { useLocalStorage } from '@vueuse/core';
 import { useNotificationsStore } from '@/utils/notification';
@@ -133,10 +134,17 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
         }
     }
 
-    async function stopTimer() {
+    async function stopTimer(): Promise<boolean> {
         const user = getCurrentUserId();
         const organization = getCurrentOrganizationId();
         if (organization) {
+            if (isEmployee() && !currentTimeEntry.value.description?.trim()) {
+                useNotificationsStore().addNotification(
+                    'error',
+                    'Description is required to stop the timer.'
+                );
+                return false;
+            }
             const currentDateTime = dayjs().utc().format();
             await handleApiRequestNotifications(
                 () =>
@@ -145,6 +153,7 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
                             user_id: user,
                             start: currentTimeEntry.value.start,
                             end: currentDateTime,
+                            description: currentTimeEntry.value.description,
                         },
                         {
                             params: {
@@ -156,6 +165,7 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
                 'Timer stopped!'
             );
             $reset();
+            return true;
         } else {
             throw new Error('Failed to stop current timer because organization ID is missing.');
         }
@@ -218,8 +228,19 @@ export const useCurrentTimeEntryStore = defineStore('currentTimeEntry', () => {
             startLiveTimer();
             await startTimer();
         } else {
+            if (isEmployee() && !currentTimeEntry.value.description?.trim()) {
+                useNotificationsStore().addNotification(
+                    'error',
+                    'Description is required to stop the timer.'
+                );
+                return;
+            }
             stopLiveTimer();
-            await stopTimer();
+            const stopped = await stopTimer();
+            if (!stopped) {
+                startLiveTimer();
+                return;
+            }
         }
         queryClient.invalidateQueries({ queryKey: ['timeEntries'] });
     }

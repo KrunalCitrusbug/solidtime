@@ -1,10 +1,11 @@
 import { useInfiniteQuery } from '@tanstack/vue-query';
 import { api } from '@/packages/api/src';
 import { getCurrentMembershipId, getCurrentOrganizationId } from '@/utils/useUser';
+import { canViewOthersTimeEntries } from '@/utils/permissions';
 import dayjs from 'dayjs';
-import { computed } from 'vue';
+import { computed, type Ref } from 'vue';
 
-export function useTimeEntriesInfiniteQuery() {
+export function useTimeEntriesInfiniteQuery(filterMemberId?: Ref<string | undefined>) {
     const organizationId = computed(() => getCurrentOrganizationId());
     const memberId = computed(() => getCurrentMembershipId());
 
@@ -12,7 +13,12 @@ export function useTimeEntriesInfiniteQuery() {
         queryKey: computed(() => [
             'timeEntries',
             'infinite',
-            { organizationId: organizationId.value, memberId: memberId.value },
+            {
+                organizationId: organizationId.value,
+                memberId: canViewOthersTimeEntries()
+                    ? (filterMemberId?.value || 'all')
+                    : memberId.value,
+            },
         ]),
         queryFn: async ({ pageParam }) => {
             const orgId = organizationId.value;
@@ -20,9 +26,14 @@ export function useTimeEntriesInfiniteQuery() {
 
             const queries: Record<string, string | undefined> = {
                 only_full_dates: 'true',
-                member_id: memberId.value,
                 limit: '50',
             };
+
+            if (!canViewOthersTimeEntries()) {
+                queries.member_id = memberId.value;
+            } else if (filterMemberId?.value) {
+                queries.member_id = filterMemberId.value;
+            }
 
             if (pageParam) {
                 queries.end = pageParam;

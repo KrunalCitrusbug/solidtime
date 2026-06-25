@@ -62,7 +62,7 @@ class UserCreateCommand extends Command
                 $name,
                 $email,
                 $password,
-                'UTC',
+                'Asia/Kolkata',
                 Weekday::Monday,
                 null,
                 verifyEmail: $verifyEmail

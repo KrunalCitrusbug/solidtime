@@ -8,17 +8,21 @@ import {
 import { getCurrentMembershipId, getCurrentOrganizationId } from '@/utils/useUser';
 import { useNotificationsStore } from '@/utils/notification';
 
+export type CreateTimeEntryInput = Omit<CreateTimeEntryBody, 'member_id'> & { member_id?: string };
+export type UpdateTimeEntryInput = TimeEntry & { member_id?: string };
+
 export function useTimeEntriesMutations() {
     const queryClient = useQueryClient();
     const { handleApiRequestNotifications } = useNotificationsStore();
 
     const { mutateAsync: createTimeEntry } = useMutation({
-        mutationFn: async (timeEntry: Omit<CreateTimeEntryBody, 'member_id'>) => {
+        mutationFn: async (timeEntry: CreateTimeEntryInput) => {
             const organizationId = getCurrentOrganizationId();
-            const memberId = getCurrentMembershipId();
+            const memberId = timeEntry.member_id ?? getCurrentMembershipId();
             if (organizationId && memberId !== undefined) {
+                const { member_id: _ignored, ...entryFields } = timeEntry;
                 const newTimeEntry = {
-                    ...timeEntry,
+                    ...entryFields,
                     member_id: memberId,
                 } as CreateTimeEntryBody;
 
@@ -40,12 +44,34 @@ export function useTimeEntriesMutations() {
     });
 
     const { mutateAsync: updateTimeEntry } = useMutation({
-        mutationFn: async (timeEntry: TimeEntry) => {
+        mutationFn: async (timeEntry: UpdateTimeEntryInput) => {
             const organizationId = getCurrentOrganizationId();
             if (organizationId) {
+                const body: {
+                    project_id: string | null;
+                    task_id: string | null;
+                    start: string;
+                    end: string | null;
+                    billable: boolean;
+                    description: string | null;
+                    tags: string[];
+                    member_id?: string;
+                } = {
+                    project_id: timeEntry.project_id,
+                    task_id: timeEntry.task_id,
+                    start: timeEntry.start,
+                    end: timeEntry.end,
+                    billable: timeEntry.billable,
+                    description: timeEntry.description,
+                    tags: timeEntry.tags,
+                };
+                if (timeEntry.member_id) {
+                    body.member_id = timeEntry.member_id;
+                }
+
                 return await handleApiRequestNotifications(
                     () =>
-                        api.updateTimeEntry(timeEntry, {
+                        api.updateTimeEntry(body, {
                             params: {
                                 organization: organizationId,
                                 timeEntry: timeEntry.id,

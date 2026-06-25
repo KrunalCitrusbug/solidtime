@@ -3,12 +3,6 @@ import { computed } from 'vue';
 import { CheckIcon } from '@heroicons/vue/16/solid';
 import DurationSecondsInput from '@/packages/ui/src/Input/DurationSecondsInput.vue';
 import LoadingSpinner from '@/packages/ui/src/LoadingSpinner.vue';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from '@/packages/ui/src/tooltip';
 import type { TimesheetCell } from '@/utils/useTimesheetGrid';
 import type { CellSaveStatus } from '@/utils/timesheet/useTimesheetCellMutations';
 
@@ -18,6 +12,8 @@ const props = defineProps<{
     date: string;
     isToday: boolean;
     hasRunningEntry: boolean;
+    readOnly?: boolean;
+    formatDuration: (seconds: number) => string;
     saveStatus?: CellSaveStatus;
     pendingSeconds?: number;
 }>();
@@ -26,11 +22,12 @@ const emit = defineEmits<{
     update: [newSeconds: number];
 }>();
 
-// Show the optimistic value while saving; `??` (not `||`) so a pending 0 (delete) wins.
 const displaySeconds = computed(() => props.pendingSeconds ?? props.cell?.totalSeconds ?? 0);
 const isSaving = computed(() => props.saveStatus === 'saving');
+const displayText = computed(() =>
+    displaySeconds.value > 0 ? props.formatDuration(displaySeconds.value) : '-'
+);
 
-// Swap the border color (don't layer) to avoid same-specificity fights.
 const inputClass = computed(() => {
     const border = props.saveStatus === 'error' ? 'border-red-500/70' : 'border-input-border';
     return [
@@ -51,26 +48,16 @@ const inputClass = computed(() => {
         data-testid="timesheet_cell"
         class="flex items-center justify-center border-t border-default-background-separator"
         :class="{ 'bg-default-background': isToday }">
-        <TooltipProvider v-if="hasRunningEntry" :delay-duration="100">
-            <Tooltip>
-                <TooltipTrigger as-child>
-                    <span class="inline-block cursor-not-allowed">
-                        <DurationSecondsInput
-                            :model-value="cell?.totalSeconds ?? 0"
-                            disabled
-                            default-unit="hours"
-                            placeholder="-"
-                            size="sm"
-                            input-class="w-[80px] mx-auto text-center font-medium
-                                bg-transparent text-text-primary placeholder:text-text-quaternary
-                                rounded-lg border border-input-border shadow-none
-                                pointer-events-none
-                                disabled:opacity-50 disabled:cursor-not-allowed" />
-                    </span>
-                </TooltipTrigger>
-                <TooltipContent> Stop the running time entry to edit the timesheet </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <span
+            v-if="readOnly"
+            class="w-[80px] text-center text-sm font-medium text-text-primary">
+            {{ displayText }}
+        </span>
+        <template v-else-if="hasRunningEntry">
+            <span class="w-[80px] text-center text-sm text-text-tertiary" title="Stop the running timer to edit">
+                {{ formatDuration(cell?.totalSeconds ?? 0) }}
+            </span>
+        </template>
         <template v-else>
             <span class="relative inline-flex items-center">
                 <DurationSecondsInput

@@ -5,6 +5,7 @@ import { UserIcon } from '@heroicons/vue/24/solid';
 import { ChevronDown } from 'lucide-vue-next';
 import type { ProjectMember } from '@/packages/api/src';
 import type { Member } from '@/packages/api/src';
+import { formatMemberNameWithEmail } from '@/utils/format';
 import {
     ComboboxAnchor,
     ComboboxContent,
@@ -48,9 +49,15 @@ watch(open, (isOpen) => {
 });
 
 const filteredMembers = computed<Member[]>(() => {
+    const query = searchValue.value.toLowerCase().trim();
     return members.value.filter((member) => {
+        const matchesSearch =
+            query === '' ||
+            member.name.toLowerCase().includes(query) ||
+            member.email.toLowerCase().includes(query);
+
         return (
-            member.name.toLowerCase().includes(searchValue.value.toLowerCase().trim() || '') &&
+            matchesSearch &&
             !props.hiddenMembers.some((hiddenMember) => hiddenMember.member_id === member.id) &&
             member.is_placeholder === false
         );
@@ -59,7 +66,8 @@ const filteredMembers = computed<Member[]>(() => {
 
 const currentValue = computed(() => {
     if (model.value) {
-        return members.value.find((member) => member.id === model.value)?.name;
+        const member = members.value.find((member) => member.id === model.value);
+        return member ? formatMemberNameWithEmail(member) : '';
     }
     return '';
 });
@@ -112,7 +120,7 @@ function selectMember(member: Member) {
                             class="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary data-[highlighted]:bg-card-background-active cursor-default"
                             @select.prevent="selectMember(member)">
                             <UserIcon class="w-4 text-text-secondary shrink-0" />
-                            <span class="truncate">{{ member.name }}</span>
+                            <span class="truncate">{{ formatMemberNameWithEmail(member) }}</span>
                         </ComboboxItem>
                     </ComboboxViewport>
                 </ComboboxContent>

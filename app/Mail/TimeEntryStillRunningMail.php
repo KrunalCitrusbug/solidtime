@@ -36,7 +36,7 @@ class TimeEntryStillRunningMail extends Mailable
     public function build(): self
     {
         return $this->markdown('emails.time-entry-still-running', [
-            'dashboardUrl' => URL::route('dashboard'),
+            'dashboardUrl' => URL::route('time'),
         ])
             ->subject(__('Your Time Tracker is still running!'));
     }

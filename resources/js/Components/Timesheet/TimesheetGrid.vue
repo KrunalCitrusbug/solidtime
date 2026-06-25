@@ -39,6 +39,7 @@ defineProps<{
     formatDuration: (seconds: number) => string;
     cellStatuses: Record<string, CellSaveStatus>;
     cellPendingSeconds: Record<string, number>;
+    readOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -105,6 +106,7 @@ const emit = defineEmits<{
                     :format-duration="formatDuration"
                     :cell-statuses="cellStatuses"
                     :cell-pending-seconds="cellPendingSeconds"
+                    :read-only="readOnly"
                     @remove-row="$emit('remove-row', $event)"
                     @cell-update="
                         (dayIndex, seconds) => $emit('cell-update', row, dayIndex, seconds)
@@ -115,6 +117,7 @@ const emit = defineEmits<{
 
                 <!-- Add row -->
                 <div
+                    v-if="!readOnly"
                     class="col-span-full flex items-center gap-2 border-t border-default-background-separator pl-4 pr-4 py-2">
                     <TimeTrackerProjectTaskDropdown
                         :project="null"

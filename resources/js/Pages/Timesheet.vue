@@ -21,7 +21,7 @@ import { useTagsStore } from '@/utils/useTags';
 import { getCurrentOrganizationId } from '@/utils/useUser';
 import { getOrganizationCurrencyString } from '@/utils/money';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
-import { canCreateProjects } from '@/utils/permissions';
+import { canCreateProjects, canCreateManualTimeEntries } from '@/utils/permissions';
 import { formatHumanReadableDuration } from '@/packages/ui/src/utils/time';
 import { useTimesheetWeek } from '@/utils/timesheet/useTimesheetWeek';
 import { useTimesheetCellMutations } from '@/utils/timesheet/useTimesheetCellMutations';
@@ -154,8 +154,12 @@ async function createTag(name: string): Promise<Tag | undefined> {
                 @next="goToNextWeek"
                 @current="goToCurrentWeek" />
 
+            <div v-if="isPending" class="flex justify-center items-center py-12">
+                <LoadingSpinner />
+            </div>
+
             <TimesheetGrid
-                v-if="!isPending"
+                v-else
                 :rows="rows"
                 :week-days="weekDays"
                 :today-date="todayDate"
@@ -174,6 +178,7 @@ async function createTag(name: string): Promise<Tag | undefined> {
                 :format-duration="formatDuration"
                 :cell-statuses="cellStatus"
                 :cell-pending-seconds="cellPendingSeconds"
+                :read-only="!canCreateManualTimeEntries()"
                 @remove-row="handleRemoveRow"
                 @cell-update="handleCellUpdate"
                 @project-task-change="
@@ -184,20 +189,17 @@ async function createTag(name: string): Promise<Tag | undefined> {
                 @add-row="handleAddRow" />
 
             <TimesheetFooterActions
-                v-if="!isPending"
+                v-if="canCreateManualTimeEntries()"
                 :busy="isCopyingLastWeek"
                 @copy-rows="copyLastWeekRows"
                 @copy-with-time="copyLastWeekWithTime" />
 
-            <div v-else class="flex justify-center items-center py-12">
-                <LoadingSpinner />
-            </div>
+            <RemoveRowDialog
+                v-if="canCreateManualTimeEntries()"
+                v-model:open="showDeleteDialog"
+                :entry-count="deleteRowEntryCount"
+                :project-name="deleteRowProjectName"
+                @confirm="confirmDeleteRow" />
         </div>
-
-        <RemoveRowDialog
-            v-model:open="showDeleteDialog"
-            :entry-count="deleteRowEntryCount"
-            :project-name="deleteRowProjectName"
-            @confirm="confirmDeleteRow" />
     </AppLayout>
 </template>

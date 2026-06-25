@@ -40,6 +40,7 @@ const props = defineProps<{
     formatDuration: (seconds: number) => string;
     cellStatuses: Record<string, CellSaveStatus>;
     cellPendingSeconds: Record<string, number>;
+    readOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -62,6 +63,24 @@ const selectedTask = computed({
 
 const rowTotalFormatted = computed(() => props.formatDuration(props.row.totalSeconds));
 
+const projectLabel = computed(() => {
+    if (!props.row.projectId) {
+        return 'No project';
+    }
+    return props.projects.find((project) => project.id === props.row.projectId)?.name ?? 'Project';
+});
+
+const taskLabel = computed(() => {
+    if (!props.row.taskId) {
+        return null;
+    }
+    return props.tasks.find((task) => task.id === props.row.taskId)?.name ?? 'Task';
+});
+
+const rowIdentityLabel = computed(() =>
+    taskLabel.value ? `${projectLabel.value} / ${taskLabel.value}` : projectLabel.value
+);
+
 function hasRunningEntry(dayIndex: number): boolean {
     const cell = props.row.cells.get(dayIndex);
     if (!cell) return false;
@@ -75,7 +94,14 @@ function hasRunningEntry(dayIndex: number): boolean {
         <div
             class="flex items-center gap-1 border-t border-default-background-separator bg-default-background pl-4 pr-3 py-2 md:sticky md:left-0 md:z-10">
             <div class="flex-1 min-w-0">
+                <div
+                    v-if="readOnly"
+                    class="text-sm text-text-primary truncate"
+                    :title="rowIdentityLabel">
+                    {{ rowIdentityLabel }}
+                </div>
                 <TimeTrackerProjectTaskDropdown
+                    v-else
                     v-model:project="selectedProject"
                     v-model:task="selectedTask"
                     :projects="projects"
@@ -93,6 +119,7 @@ function hasRunningEntry(dayIndex: number): boolean {
                     class="w-full" />
             </div>
             <div class="flex items-center gap-1 flex-shrink-0 ml-auto">
+                <template v-if="!readOnly">
                 <TimeEntryRowTagDropdown
                     :create-tag="createTag"
                     :tags="tags"
@@ -103,6 +130,7 @@ function hasRunningEntry(dayIndex: number): boolean {
                     size="small"
                     faded
                     @changed="emit('billableChange', $event)" />
+                </template>
             </div>
         </div>
 
@@ -115,6 +143,8 @@ function hasRunningEntry(dayIndex: number): boolean {
             :date="day"
             :is-today="day === todayDate"
             :has-running-entry="hasRunningEntry(dayIndex)"
+            :read-only="readOnly"
+            :format-duration="formatDuration"
             :save-status="cellStatuses[makeCellStatusKey(row.key, dayIndex)]"
             :pending-seconds="cellPendingSeconds[makeCellStatusKey(row.key, dayIndex)]"
             @update="(seconds) => emit('cellUpdate', dayIndex, seconds)" />
@@ -130,6 +160,7 @@ function hasRunningEntry(dayIndex: number): boolean {
         <div
             class="flex items-center justify-center border-t border-default-background-separator pr-4 py-3">
             <Button
+                v-if="!readOnly"
                 variant="ghost"
                 size="icon"
                 aria-label="Remove row"

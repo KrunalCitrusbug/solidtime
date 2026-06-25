@@ -78,15 +78,15 @@ class TaskController extends Controller
         if (! $canViewAllTasks) {
             $query->visibleByEmployee($user);
         }
-        // Managers are scoped to tasks within the projects they manage.
-        if ($member->role === Role::Manager->value) {
+        // Team leads are scoped to tasks within the projects they are assigned to.
+        if ($member->role === Role::TeamLead->value) {
             $query->whereHas('project', function ($builder) use ($member): void {
                 /** @var \Illuminate\Database\Eloquent\Builder<Project> $builder */
                 $builder->assignedToMember($member);
             });
         }
-        // Private-task visibility applies to Employees and Managers (not Owner/Admin).
-        if (in_array($member->role, [Role::Employee->value, Role::Manager->value], true)) {
+        // Private-task visibility applies to Employees and Team leads (not Owner/Admin/Manager).
+        if (in_array($member->role, [Role::Employee->value, Role::TeamLead->value], true)) {
             $query->visibleByMember($member);
         }
         $doneFilter = $request->getFilterDone();

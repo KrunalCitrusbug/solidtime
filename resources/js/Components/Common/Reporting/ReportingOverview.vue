@@ -31,7 +31,7 @@ import {
 } from '@/packages/ui/src';
 import ReportCreateModal from '@/Components/Common/Report/ReportCreateModal.vue';
 import UpgradeModal from '@/Components/Common/UpgradeModal.vue';
-import { canCreateReports } from '@/utils/permissions';
+import { canCreateReports, canFilterReportsByMember, canViewOthersTimeEntries } from '@/utils/permissions';
 import { isAllowedToPerformPremiumAction } from '@/utils/billing';
 import { computed, type ComputedRef, inject, ref, watch } from 'vue';
 import { type GroupingOption, useReportingStore } from '@/utils/useReporting';
@@ -117,13 +117,16 @@ const filterParams = computed<AggregatedTimeEntriesQueryParams>(() => {
     return {
         start: getLocalizedDayJs(startDate.value).startOf('day').utc().format(),
         end: getLocalizedDayJs(endDate.value).endOf('day').utc().format(),
-        member_ids: selectedMembers.value.length > 0 ? selectedMembers.value : undefined,
+        member_ids:
+            canFilterReportsByMember() && selectedMembers.value.length > 0
+                ? selectedMembers.value
+                : undefined,
         project_ids: selectedProjects.value.length > 0 ? selectedProjects.value : undefined,
         task_ids: selectedTasks.value.length > 0 ? selectedTasks.value : undefined,
         client_ids: selectedClients.value.length > 0 ? selectedClients.value : undefined,
         tag_ids: selectedTags.value.length > 0 ? selectedTags.value : undefined,
         billable: billable.value !== null ? billable.value : undefined,
-        member_id: getCurrentRole() === 'employee' ? getCurrentMembershipId() : undefined,
+        member_id: !canViewOthersTimeEntries() ? getCurrentMembershipId() : undefined,
         rounding_type: roundingEnabled.value ? roundingType.value : undefined,
         rounding_minutes: roundingEnabled.value ? roundingMinutes.value : undefined,
     };

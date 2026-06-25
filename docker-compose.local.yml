@@ -1,0 +1,93 @@
+# Citrusbug local / production Docker stack (port 8000).
+# Run from the solidtime repo root:
+#   docker compose -f docker-compose.local.yml -p solidtime-local up -d
+#
+# Config: .env in this directory (copy from .env.docker.example)
+# Image:  docker build -f Dockerfile.weekly -t solidtime-local:latest .
+#
+# Reuses existing volumes if you migrated from solidtime-local-stack:
+#   self-hosting-examples_database-storage
+#   self-hosting-examples_app-storage
+
+services:
+  database:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - '${FORWARD_DB_PORT:-5432}:5432'
+    volumes:
+      - database-storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+
+  app:
+    image: solidtime-local:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_MODE: http
+    ports:
+      - '8000:8000'
+    volumes:
+      - app-storage:/var/www/html/storage
+    depends_on:
+      database:
+        condition: service_healthy
+      gotenberg:
+        condition: service_started
+
+  scheduler:
+    image: solidtime-local:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_MODE: scheduler
+    volumes:
+      - app-storage:/var/www/html/storage
+    healthcheck:
+      test: ['CMD', '/usr/local/bin/healthcheck']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      database:
+        condition: service_healthy
+
+  queue:
+    image: solidtime-local:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CONTAINER_MODE: worker
+      WORKER_COMMAND: 'php artisan queue:work --tries=3 --max-time=3600'
+    volumes:
+      - app-storage:/var/www/html/storage
+    healthcheck:
+      test: ['CMD', '/usr/local/bin/healthcheck']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      database:
+        condition: service_healthy
+
+volumes:
+  database-storage:
+    external: true
+    name: self-hosting-examples_database-storage
+  app-storage:
+    external: true
+    name: self-hosting-examples_app-storage

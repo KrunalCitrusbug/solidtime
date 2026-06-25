@@ -14,7 +14,10 @@ function buildCell(totalSeconds: number): TimesheetCellType {
     };
 }
 
-function mountTimesheetCell(totalSeconds = 2 * 3600) {
+function mountTimesheetCell(totalSeconds = 2 * 3600, readOnly = false) {
+    const formatDuration = (seconds: number) =>
+        seconds > 0 ? formatHumanReadableDuration(seconds, 'hours-minutes', 'point') : '-';
+
     return mount(TimesheetCell, {
         props: {
             cell: buildCell(totalSeconds),
@@ -22,6 +25,8 @@ function mountTimesheetCell(totalSeconds = 2 * 3600) {
             date: '2026-04-13',
             isToday: false,
             hasRunningEntry: false,
+            formatDuration,
+            readOnly,
         },
     });
 }
@@ -64,6 +69,9 @@ describe('TimesheetCell', () => {
     });
 
     it('shows a pending 0 (delete in flight) over the cell total', () => {
+        const formatDuration = (seconds: number) =>
+            seconds > 0 ? formatHumanReadableDuration(seconds, 'hours-minutes', 'point') : '-';
+
         const wrapper = mount(TimesheetCell, {
             props: {
                 cell: buildCell(2 * 3600),
@@ -71,6 +79,7 @@ describe('TimesheetCell', () => {
                 date: '2026-04-13',
                 isToday: false,
                 hasRunningEntry: false,
+                formatDuration,
                 pendingSeconds: 0,
             },
         });
@@ -80,6 +89,9 @@ describe('TimesheetCell', () => {
     });
 
     it('disables editing while the cell is saving', () => {
+        const formatDuration = (seconds: number) =>
+            seconds > 0 ? formatHumanReadableDuration(seconds, 'hours-minutes', 'point') : '-';
+
         const wrapper = mount(TimesheetCell, {
             props: {
                 cell: buildCell(2 * 3600),
@@ -87,10 +99,18 @@ describe('TimesheetCell', () => {
                 date: '2026-04-13',
                 isToday: false,
                 hasRunningEntry: false,
+                formatDuration,
                 saveStatus: 'saving',
             },
         });
 
         expect((wrapper.get('input').element as HTMLInputElement).disabled).toBe(true);
+    });
+
+    it('shows formatted duration as text in read-only mode', () => {
+        const wrapper = mountTimesheetCell(2 * 3600, true);
+
+        expect(wrapper.text()).toContain(formatHumanReadableDuration(2 * 3600, 'hours-minutes', 'point'));
+        expect(wrapper.find('input').exists()).toBe(false);
     });
 });

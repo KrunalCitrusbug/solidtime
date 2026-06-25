@@ -19,7 +19,7 @@ class CustomTwoFactorLoginResponse implements TwoFactorLoginResponseContract
      */
     public function toResponse($request): Response
     {
-        $redirectPath = session()->pull('url.intended', route('dashboard', [], false));
+        $redirectPath = session()->pull('url.intended', route('time', [], false));
 
         return $request->wantsJson()
             ? new JsonResponse('', 204)

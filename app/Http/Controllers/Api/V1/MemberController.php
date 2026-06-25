@@ -25,6 +25,7 @@ use App\Http\Resources\V1\Member\MemberCollection;
 use App\Http\Resources\V1\Member\MemberResource;
 use App\Models\Member;
 use App\Models\Organization;
+use App\Models\ProjectMember;
 use App\Service\BillableRateService;
 use App\Service\InvitationService;
 use App\Service\MemberService;
@@ -57,9 +58,27 @@ class MemberController extends Controller
     {
         $this->checkPermission($organization, 'members:view');
 
-        $members = Member::query()
+        $currentMember = $this->member($organization);
+
+        $membersQuery = Member::query()
             ->whereBelongsTo($organization, 'organization')
-            ->with(['user'])
+            ->with(['user']);
+
+        // Team leads only see members on projects they are assigned to.
+        if ($currentMember->role === Role::TeamLead->value) {
+            $projectIds = ProjectMember::query()
+                ->where('member_id', '=', $currentMember->getKey())
+                ->pluck('project_id');
+
+            $scopedMemberIds = ProjectMember::query()
+                ->whereIn('project_id', $projectIds)
+                ->pluck('member_id')
+                ->unique();
+
+            $membersQuery->whereIn('id', $scopedMemberIds);
+        }
+
+        $members = $membersQuery
             ->orderBy('created_at', 'desc')
             ->paginate(config('app.pagination_per_page_default'));
 

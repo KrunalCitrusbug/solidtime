@@ -25,13 +25,17 @@ import DurationHumanInput from '@/packages/ui/src/Input/DurationHumanInput.vue';
 import { InformationCircleIcon } from '@heroicons/vue/20/solid';
 import type { Tag, Task } from '@/packages/api/src';
 import TimePickerSimple from '@/packages/ui/src/Input/TimePickerSimple.vue';
+import MemberCombobox from '@/Components/Common/Member/MemberCombobox.vue';
+import { getCurrentMembershipId } from '@/utils/useUser';
 
 const show = defineModel('show', { default: false });
 const saving = ref(false);
 
 const props = defineProps<{
     enableEstimatedTime: boolean;
-    createTimeEntry: (entry: Omit<CreateTimeEntryBody, 'member_id'>) => Promise<void>;
+    createTimeEntry: (
+        entry: Omit<CreateTimeEntryBody, 'member_id'> & { member_id?: string }
+    ) => Promise<void>;
     createClient: (client: CreateClientBody) => Promise<Client | undefined>;
     createProject: (project: CreateProjectBody) => Promise<Project | undefined>;
     createTag: (name: string) => Promise<Tag | undefined>;
@@ -44,12 +48,17 @@ const props = defineProps<{
     currency: string;
     organizationBillableRate: number | null;
     canCreateProject: boolean;
+    allowMemberSelection?: boolean;
+    defaultMemberId?: string;
 }>();
 
 const description = ref<HTMLInputElement | null>(null);
 
 watch(show, (value) => {
     if (value) {
+        if (props.allowMemberSelection) {
+            selectedMemberId.value = props.defaultMemberId || getCurrentMembershipId() || '';
+        }
         nextTick(() => {
             description.value?.focus();
         });
@@ -69,6 +78,19 @@ const timeEntryDefaultValues = {
 const timeEntry = ref({
     ...timeEntryDefaultValues,
 });
+
+const selectedMemberId = ref(
+    props.defaultMemberId || getCurrentMembershipId() || ''
+);
+
+watch(
+    () => props.defaultMemberId,
+    (value) => {
+        if (value && props.allowMemberSelection) {
+            selectedMemberId.value = value;
+        }
+    }
+);
 
 // update the localStart and localEnd when props.start or props.end get updates
 watch(
@@ -117,7 +139,13 @@ watch(localEnd, (value) => {
 });
 
 async function submit() {
-    await props.createTimeEntry({ ...timeEntry.value });
+    const payload = { ...timeEntry.value } as Omit<CreateTimeEntryBody, 'member_id'> & {
+        member_id?: string;
+    };
+    if (props.allowMemberSelection && selectedMemberId.value) {
+        payload.member_id = selectedMemberId.value;
+    }
+    await props.createTimeEntry(payload);
     timeEntry.value = { ...timeEntryDefaultValues };
     localStart.value = getLocalizedDayJs(timeEntryDefaultValues.start).format();
     localEnd.value = getLocalizedDayJs(timeEntryDefaultValues.end).format();
@@ -141,6 +169,12 @@ const billableProxy = computed({
         </template>
 
         <template #content>
+            <div v-if="allowMemberSelection" class="pb-4">
+                <Field>
+                    <FieldLabel>Employee</FieldLabel>
+                    <MemberCombobox v-model="selectedMemberId" class="w-full" />
+                </Field>
+            </div>
             <div class="sm:flex items-end space-y-2 sm:space-y-0 sm:space-x-4">
                 <div class="flex-1">
                     <TextInput

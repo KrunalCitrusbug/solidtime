@@ -110,7 +110,9 @@ const roleDescriptionTexts = {
     'admin':
         'The admin has full access to the organization, except for the stuff that only the owner can do.',
     'manager':
-        'The manager has full access to projects, clients, tags, time entries, and reports, but can not manage the organization or the users.',
+        'Managers can view organization-wide projects, time entries, reports, and clients for auditing, but cannot create or edit data.',
+    'team_lead':
+        'Team leads can view time entries and reports for members on projects they are assigned to, but cannot create or edit data.',
     'employee':
         'An employee is a user that is only using the application to track time, but has no administrative rights.',
     'placeholder':

@@ -25,7 +25,8 @@ import { getOrganizationCurrencyString } from '@/utils/money';
 import { canCreateProjects } from '@/utils/permissions';
 import { useCurrentTimeEntryStore } from '@/utils/useCurrentTimeEntry';
 import { useOrganizationQuery } from '@/utils/useOrganizationQuery';
-import { getCurrentOrganizationId } from '@/utils/useUser';
+import { router } from '@inertiajs/vue3';
+import { getCurrentOrganizationId, isEmployee } from '@/utils/useUser';
 
 const { organization } = useOrganizationQuery(getCurrentOrganizationId()!);
 const calendarStart = ref<Dayjs | undefined>(undefined);
@@ -37,6 +38,10 @@ const calendarEnd = ref<Dayjs | undefined>(undefined);
 const testActivityPeriods = ref<ActivityPeriod[]>([]);
 
 onMounted(() => {
+    if (isEmployee()) {
+        router.visit(route('time'));
+        return;
+    }
     (window as unknown as Record<string, unknown>).__TEST_SET_ACTIVITY_PERIODS__ = (
         data: ActivityPeriod[]
     ) => {

@@ -27,9 +27,9 @@ const user = computed(() => page?.props?.auth?.user);
         <div v-if="canLogin" class="sm:fixed sm:top-0 sm:end-0 p-6 text-end z-10">
             <Link
                 v-if="user"
-                :href="route('dashboard')"
+                :href="route('time')"
                 class="font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-text-primary focus:outline focus:outline-2 focus:rounded-sm focus:outline-red-500"
-                >Dashboard</Link
+                >Time</Link
             >
 
             <template v-else>

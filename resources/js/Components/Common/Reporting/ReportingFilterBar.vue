@@ -1,21 +1,16 @@
 <script setup lang="ts">
-import { CheckCircleIcon, TagIcon, UserGroupIcon } from '@heroicons/vue/20/solid';
+import { CheckCircleIcon, UserGroupIcon } from '@heroicons/vue/20/solid';
 import { FolderIcon } from '@heroicons/vue/16/solid';
-import BillableIcon from '@/packages/ui/src/Icons/BillableIcon.vue';
-import ReportingRoundingControls from '@/Components/Common/Reporting/ReportingRoundingControls.vue';
 import TaskMultiselectDropdown from '@/Components/Common/Task/TaskMultiselectDropdown.vue';
 import ClientMultiselectDropdown from '@/Components/Common/Client/ClientMultiselectDropdown.vue';
 import MemberMultiselectDropdown from '@/Components/Common/Member/MemberMultiselectDropdown.vue';
 import ReportingFilterBadge from '@/Components/Common/Reporting/ReportingFilterBadge.vue';
 import ProjectMultiselectDropdown from '@/Components/Common/Project/ProjectMultiselectDropdown.vue';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/packages/ui/src';
 import MainContainer from '@/packages/ui/src/MainContainer.vue';
 import DateRangePicker from '@/packages/ui/src/Input/DateRangePicker.vue';
-import TagDropdown from '@/packages/ui/src/Tag/TagDropdown.vue';
-import { useTagsQuery } from '@/utils/useTagsQuery';
-import { useTagsStore } from '@/utils/useTags';
 import { XMarkIcon } from '@heroicons/vue/16/solid';
 import { computed } from 'vue';
+import { canFilterReportsByMember } from '@/utils/permissions';
 
 type TimeEntryRoundingType = 'up' | 'down' | 'nearest';
 
@@ -23,11 +18,11 @@ const selectedMembers = defineModel<string[]>('selectedMembers', { required: tru
 const selectedProjects = defineModel<string[]>('selectedProjects', { required: true });
 const selectedTasks = defineModel<string[]>('selectedTasks', { required: true });
 const selectedClients = defineModel<string[]>('selectedClients', { required: true });
-const selectedTags = defineModel<string[]>('selectedTags', { required: true });
-const billable = defineModel<'true' | 'false' | null>('billable', { required: true });
-const roundingEnabled = defineModel<boolean>('roundingEnabled', { required: true });
-const roundingType = defineModel<TimeEntryRoundingType>('roundingType', { required: true });
-const roundingMinutes = defineModel<number>('roundingMinutes', { required: true });
+defineModel<string[]>('selectedTags', { required: true });
+defineModel<'true' | 'false' | null>('billable', { required: true });
+defineModel<boolean>('roundingEnabled', { required: true });
+defineModel<TimeEntryRoundingType>('roundingType', { required: true });
+defineModel<number>('roundingMinutes', { required: true });
 const startDate = defineModel<string>('startDate', { required: true });
 const endDate = defineModel<string>('endDate', { required: true });
 
@@ -35,29 +30,23 @@ const emit = defineEmits<{
     submit: [];
 }>();
 
-const { tags } = useTagsQuery();
-
-async function createTag(name: string) {
-    return await useTagsStore().createTag(name);
-}
+const showMemberFilter = computed(() => canFilterReportsByMember());
 
 const hasActiveFilters = computed(
     () =>
-        selectedMembers.value.length > 0 ||
+        (showMemberFilter.value && selectedMembers.value.length > 0) ||
         selectedProjects.value.length > 0 ||
         selectedTasks.value.length > 0 ||
-        selectedClients.value.length > 0 ||
-        selectedTags.value.length > 0 ||
-        billable.value !== null
+        selectedClients.value.length > 0
 );
 
 function clearFilters() {
-    selectedMembers.value = [];
+    if (showMemberFilter.value) {
+        selectedMembers.value = [];
+    }
     selectedProjects.value = [];
     selectedTasks.value = [];
     selectedClients.value = [];
-    selectedTags.value = [];
-    billable.value = null;
     emit('submit');
 }
 </script>
@@ -67,7 +56,10 @@ function clearFilters() {
         <MainContainer class="sm:flex space-y-4 sm:space-y-0 justify-between">
             <div class="flex flex-wrap items-center space-y-2 sm:space-y-0 space-x-3">
                 <div class="text-sm font-medium">Filters</div>
-                <MemberMultiselectDropdown v-model="selectedMembers" @submit="emit('submit')">
+                <MemberMultiselectDropdown
+                    v-if="showMemberFilter"
+                    v-model="selectedMembers"
+                    @submit="emit('submit')">
                     <template #trigger>
                         <ReportingFilterBadge
                             :count="selectedMembers.length"
@@ -103,50 +95,6 @@ function clearFilters() {
                             :icon="FolderIcon" />
                     </template>
                 </ClientMultiselectDropdown>
-                <TagDropdown
-                    v-model="selectedTags"
-                    :create-tag
-                    :tags="tags"
-                    @submit="emit('submit')">
-                    <template #trigger>
-                        <ReportingFilterBadge
-                            :count="selectedTags.length"
-                            :active="selectedTags.length > 0"
-                            title="Tags"
-                            :icon="TagIcon" />
-                    </template>
-                </TagDropdown>
-
-                <Select v-model="billable" @update:model-value="emit('submit')">
-                    <SelectTrigger
-                        size="sm"
-                        variant="outline"
-                        :active="billable !== null"
-                        :show-chevron="false">
-                        <SelectValue class="flex items-center gap-2">
-                            <BillableIcon
-                                class="h-4"
-                                :class="
-                                    billable !== null
-                                        ? 'dark:text-accent-300/80 text-accent-400/80'
-                                        : 'text-text-quaternary'
-                                " />
-                            <span class="text-text-secondary">{{
-                                billable === 'false' ? 'Non Billable' : 'Billable'
-                            }}</span>
-                        </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem :value="null">Both</SelectItem>
-                        <SelectItem value="true">Billable</SelectItem>
-                        <SelectItem value="false">Non Billable</SelectItem>
-                    </SelectContent>
-                </Select>
-                <ReportingRoundingControls
-                    v-model:enabled="roundingEnabled"
-                    v-model:type="roundingType"
-                    v-model:minutes="roundingMinutes"
-                    @change="emit('submit')" />
                 <button
                     v-if="hasActiveFilters"
                     type="button"

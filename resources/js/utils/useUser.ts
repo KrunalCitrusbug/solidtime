@@ -28,10 +28,26 @@ function getCurrentRole() {
         ?.membership.role;
 }
 
+function isEmployee() {
+    return getCurrentRole() === 'employee';
+}
+
+function isTeamLead() {
+    return getCurrentRole() === 'team_lead';
+}
+
+function isViewOnlyRole() {
+    const role = getCurrentRole();
+    return role === 'manager' || role === 'team_lead';
+}
+
 export {
     getCurrentOrganizationId,
     getCurrentUserId,
     getCurrentMembershipId,
     getCurrentRole,
     getCurrentUser,
+    isEmployee,
+    isTeamLead,
+    isViewOnlyRole,
 };

@@ -55,6 +55,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\TemporaryDirectory\TemporaryDirectory;
 
@@ -210,22 +211,22 @@ class TimeEntryController extends Controller
         $filter->addBillableFilter($request->input('billable'));
 
         $query = $filter->get();
-        $this->applyManagerProjectScope($query, $organization);
+        $this->applyTeamLeadProjectScope($query, $organization);
 
         return $query;
     }
 
     /**
-     * Managers may only see time entries belonging to the projects they are
-     * assigned to. Owner/Admin (and Employees, who are already scoped to their
-     * own entries) are unaffected.
+     * Team leads may only see time entries belonging to the projects they are
+     * assigned to. Owner/Admin/Managers (and Employees, who are already scoped
+     * to their own entries) are unaffected.
      *
      * @param  Builder<TimeEntry>  $query
      */
-    private function applyManagerProjectScope(Builder $query, Organization $organization): void
+    private function applyTeamLeadProjectScope(Builder $query, Organization $organization): void
     {
         $member = $this->member($organization);
-        if ($member->role !== Role::Manager->value) {
+        if ($member->role !== Role::TeamLead->value) {
             return;
         }
         $projectIds = ProjectMember::query()
@@ -589,7 +590,7 @@ class TimeEntryController extends Controller
         $filter->addBillableFilter($request->input('billable'));
 
         $query = $filter->get();
-        $this->applyManagerProjectScope($query, $organization);
+        $this->applyTeamLeadProjectScope($query, $organization);
 
         return $query;
     }
@@ -611,6 +612,8 @@ class TimeEntryController extends Controller
         } else {
             $this->checkPermission($organization, 'time-entries:create:all');
         }
+
+        $this->assertManualTimeEntryAllowed($member, $request->input('end'));
 
         if ($request->input('end') === null && TimeEntry::query()->whereBelongsTo($member, 'member')->where('end', null)->exists()) {
             throw new TimeEntryStillRunningApiException;
@@ -659,6 +662,32 @@ class TimeEntryController extends Controller
             $this->checkPermission($organization, 'time-entries:update:own', $timeEntry);
         } else {
             $this->checkPermission($organization, 'time-entries:update:all', $timeEntry);
+        }
+
+        $canUpdateAll = $this->hasPermission($organization, 'time-entries:update:all');
+        if (! $canUpdateAll) {
+            if ($timeEntry->end !== null) {
+                throw new AuthorizationException('Employees cannot edit completed time entries.');
+            }
+
+            $isStopping = $request->has('end') && $request->input('end') !== null;
+            if ($isStopping) {
+                $description = $request->has('description')
+                    ? $request->input('description')
+                    : $timeEntry->description;
+                if (trim((string) $description) === '') {
+                    throw ValidationException::withMessages([
+                        'description' => [__('validation.required', ['attribute' => 'description'])],
+                    ]);
+                }
+            }
+
+            if ($request->has('start')) {
+                $newStart = Carbon::parse($request->input('start'));
+                if (! $newStart->equalTo($timeEntry->start)) {
+                    throw new AuthorizationException('Manual time entry adjustments are not allowed for your role.');
+                }
+            }
         }
 
         if ($timeEntry->end !== null && $request->has('end') && $request->input('end') === null) {
@@ -898,5 +927,23 @@ class TimeEntryController extends Controller
             'success' => $success->toArray(),
             'error' => $error->toArray(),
         ]);
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    private function assertManualTimeEntryAllowed(Member $member, ?string $end): void
+    {
+        if ($end === null) {
+            return;
+        }
+
+        if (in_array($member->role, [
+            Role::Employee->value,
+            Role::Manager->value,
+            Role::TeamLead->value,
+        ], true)) {
+            throw new AuthorizationException('Manual time entries are not allowed for your role.');
+        }
     }
 }
